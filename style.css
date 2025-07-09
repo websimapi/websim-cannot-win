@@ -1,0 +1,56 @@
+body {
+    background-color: #f0f0f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    text-align: center;
+    color: #333;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200vw;
+    height: 200vh;
+    /* URL-encoded SVG for the background pattern */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Ctext x='50%25' y='50%25' font-family='-apple-system, BlinkMacSystemFont, %22Segoe UI%22, Roboto, Helvetica, Arial, sans-serif' font-size='24' fill='%23000' text-anchor='middle' dominant-baseline='middle' transform='rotate(-30 200,100)'%3EYou Just Lost The Game%3C/text%3E%3C/svg%3E");
+    background-size: 400px 200px;
+    opacity: 0.08;
+    z-index: -1;
+    transform-origin: center;
+    animation: scroll 60s linear infinite;
+}
+
+@keyframes scroll {
+    from {
+        transform: translate(0, 0);
+    }
+    to {
+        transform: translate(-400px, -200px);
+    }
+}
+
+main {
+    padding: 2rem 4rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+h1 {
+    font-size: clamp(2rem, 5vw, 4rem);
+    margin: 0;
+    color: #d90429;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+
