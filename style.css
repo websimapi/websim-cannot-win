@@ -54,3 +54,32 @@ h1 {
     text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
 }
 
+.counter {
+    position: fixed;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    min-width: 50px;
+    text-align: center;
+}
+
+.counter-label {
+    font-size: 0.8rem;
+    display: block;
+    font-weight: normal;
+    opacity: 0.8;
+}
+
+.top-left { top: 20px; left: 20px; text-align: left; }
+.top-right { top: 20px; right: 20px; }
+.bottom-left { bottom: 20px; left: 20px; }
+.bottom-right { bottom: 20px; right: 20px; }
+
+.recent-loser {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
