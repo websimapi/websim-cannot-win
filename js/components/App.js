@@ -1,20 +1,9 @@
-import React from 'react';
-import Game from './Game.js';
-import DisclaimerOverlay from './DisclaimerOverlay.js';
-import FadeInOverlay from './FadeInOverlay.js';
-import AudioManager from '../AudioManager.js';
-
 const { useState, useEffect, useSyncExternalStore, useMemo } = React;
 
 function App() {
-    const losses = useSyncExternalStore(window.lossesCollection.subscribe, window.lossesCollection.getList) || [];
+    const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
     const [showDisclaimer, setShowDisclaimer] = useState(true);
     const [isFading, setIsFading] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null);
-
-    useEffect(() => {
-        window.websim.getCurrentUser().then(setCurrentUser);
-    }, []);
 
     const handlePlayClick = async () => {
         await lossesCollection.create({});
@@ -60,17 +49,6 @@ function App() {
         return { todayCount: today, weekCount: week };
     }, [losses]);
 
-    const maxHealth = useMemo(() => {
-        if (!currentUser || !losses) return 10; // Default health if data is not yet available
-
-        const userLosses = losses.filter(loss => loss.user_id === currentUser.id).length;
-        
-        // ((how many times this user has lost the game) / 10) + 10 + ( how many times users this week have lost the game / 100 )
-        const calculatedHealth = (userLosses / 10) + 10 + (weekCount / 100);
-        
-        return Math.max(10, calculatedHealth); // Ensure there's a minimum amount of health
-    }, [currentUser, losses, weekCount]);
-
     if (showDisclaimer) {
         return (
             <DisclaimerOverlay
@@ -108,9 +86,7 @@ function App() {
                     <div id="week-counter" className="counter-value">{weekCount}</div>
                 </div>
             </div>
-            <Game maxHealth={maxHealth} />
+            <Game />
         </>
     );
 }
-
-export default App;

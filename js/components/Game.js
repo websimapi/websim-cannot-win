@@ -1,100 +1,55 @@
-import React from 'react';
 const { useState, useEffect, useRef } = React;
 
-function Game({ maxHealth }) {
+function Game() {
     const gameAreaRef = useRef(null);
     const playerRef = useRef(null);
-    const [health, setHealth] = useState(maxHealth);
-    const [orbs, setOrbs] = useState([]);
     
     const [playerState, setPlayerState] = useState({
         x: -100, // Start off-screen
         y: -100,
         vx: 0,
         vy: 0,
-        grounded: false
+        grounded: false,
+        health: 1 // Max health is 1 (100%)
     });
     const [gameScale, setGameScale] = useState(1);
     const [initialized, setInitialized] = useState(false);
     const keysPressed = useRef({});
-
-    useEffect(() => {
-        setHealth(maxHealth);
-    }, [maxHealth]);
+    const [healthOrbs, setHealthOrbs] = useState([]);
 
     useEffect(() => {
         if (gameAreaRef.current && !initialized) {
             const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-            // We set the player position relative to the viewport center, which is the transform origin.
-            const playerX = window.innerWidth / 2 - 15;
-            const playerY = window.innerHeight / 2 - 15;
-            
-            setPlayerState({
-                x: playerX, 
-                y: playerY, 
-                vx: 0,
-                vy: 0,
-                grounded: false
-            });
+            setPlayerState(p => ({
+                ...p,
+                x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
+                y: -50, // Start 50px above the game area, relative to it
+            }));
             setInitialized(true);
         }
-    }, [initialized, gameAreaRef.current]);
-    
+    }, [initialized]);
+
+    // Orb Spawning Timer
     useEffect(() => {
         if (!initialized) return;
 
-        const MAX_ORBS = 15;
-        const ORB_SPAWN_RATE = 2000; // ms
-
-        const spawnOrb = () => {
+        const orbSpawner = setInterval(() => {
             if (!gameAreaRef.current) return;
+            const gameAreaWidth = gameAreaRef.current.offsetWidth;
+            const gameAreaHeight = gameAreaRef.current.offsetHeight;
+            const padding = 50; // Don't spawn too close to edges
 
-            setOrbs(prevOrbs => {
-                if (prevOrbs.length >= MAX_ORBS) {
-                    return prevOrbs;
+            setHealthOrbs(orbs => [
+                ...orbs,
+                {
+                    id: Date.now(),
+                    x: padding + Math.random() * (gameAreaWidth - padding * 2),
+                    y: padding + Math.random() * (gameAreaHeight - padding * 2),
                 }
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-                
-                // We must use unscaled rect for spawning logic
-                const mainEl = gameAreaRef.current;
-                const rect = {
-                    width: mainEl.offsetWidth,
-                    height: mainEl.offsetHeight,
-                    left: mainEl.offsetLeft,
-                    top: mainEl.offsetTop
-                };
+            ]);
+        }, 5000); // Spawn every 5 seconds
 
-                let x, y;
-                let isInsideGameArea = true;
-
-                // Keep generating coordinates until the orb is outside the game area
-                while (isInsideGameArea) {
-                    x = Math.random() * screenWidth;
-                    y = Math.random() * screenHeight;
-                    
-                    isInsideGameArea = (
-                        x >= rect.left &&
-                        x <= rect.right &&
-                        y >= rect.top &&
-                        y <= rect.bottom
-                    );
-                }
-
-                const newOrb = {
-                    id: Date.now() + Math.random(),
-                    x: x,
-                    y: y,
-                    vx: (Math.random() - 0.5) * 1,
-                    vy: (Math.random() - 0.5) * 1
-                };
-                return [...prevOrbs, newOrb];
-            });
-        };
-
-        const intervalId = setInterval(spawnOrb, ORB_SPAWN_RATE);
-        return () => clearInterval(intervalId);
-
+        return () => clearInterval(orbSpawner);
     }, [initialized]);
 
     useEffect(() => {
@@ -111,68 +66,24 @@ function Game({ maxHealth }) {
     useEffect(() => {
         if (!initialized) return;
 
-        let lastTime = performance.now();
         let animationFrameId;
 
-        const gameLoop = (currentTime) => {
+        const gameLoop = () => {
             if (!gameAreaRef.current) return;
-            const deltaTime = (currentTime - lastTime) / 1000; // time in seconds
-            lastTime = currentTime;
-
-            // Health depletion over time
-            setHealth(h => Math.max(0, h - (deltaTime * 0.5))); // Health decreases over time
-            
-            // Orb movement and collision with player
-            const playerSize = 30; // aabb
-            const orbSize = 15;
-
-            const playerRect = {
-                left: playerState.x,
-                right: playerState.x + playerSize,
-                top: playerState.y,
-                bottom: playerState.y + playerSize
-            };
-
-            setOrbs(currentOrbs => {
-                const updatedOrbs = currentOrbs.map(orb => ({
-                    ...orb,
-                    x: orb.x + orb.vx,
-                    y: orb.y + orb.vy,
-                })).filter(orb => {
-                    const orbRect = {
-                        left: orb.x,
-                        right: orb.x + orbSize,
-                        top: orb.y,
-                        bottom: orb.y + orbSize
-                    };
-
-                    const collides = playerRect.right > orbRect.left &&
-                                     playerRect.left < orbRect.right &&
-                                     playerRect.bottom > orbRect.top &&
-                                     playerRect.top < orbRect.bottom;
-                    
-                    if (collides) {
-                        setHealth(h => Math.min(maxHealth, h + 0.1));
-                        return false; // Remove orb on collision
-                    }
-                    return true;
-                });
-                return updatedOrbs;
-            });
 
             // Use offsetWidth and offsetHeight for consistent dimensions.
             const gameAreaWidth = gameAreaRef.current.offsetWidth;
             const gameAreaHeight = gameAreaRef.current.offsetHeight;
-            const gameAreaX = gameAreaRef.current.offsetLeft;
-            const gameAreaY = gameAreaRef.current.offsetTop;
             
             const planetCenter = {
-                x: gameAreaX + gameAreaWidth / 2, // relative to viewport
-                y: gameAreaY + gameAreaHeight / 2 // relative to viewport
+                x: gameAreaWidth / 2, // relative to gameArea
+                y: gameAreaHeight / 2 // relative to gameArea
             };
+            const playerSize = 30;
+            const orbSize = 20;
 
             setPlayerState(p => {
-                let { x, y, vx, vy } = p;
+                let { x, y, vx, vy, health } = p;
                 
                 // Gravity
                 const gravity = 0.3; // slightly reduced for better control
@@ -193,16 +104,40 @@ function Game({ maxHealth }) {
                 vx *= 0.98;
                 vy *= 0.98;
 
-                // Calculate zoom based on distance from planet center
+                // Orb collection
                 const playerCenterX = x + playerSize / 2;
                 const playerCenterY = y + playerSize / 2;
+                
+                const remainingOrbs = [];
+                let collectedAny = false;
+                for(const orb of healthOrbs) {
+                    const orbCenterX = orb.x + orbSize / 2;
+                    const orbCenterY = orb.y + orbSize / 2;
+                    const dx = playerCenterX - orbCenterX;
+                    const dy = playerCenterY - orbCenterY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const collisionDistance = (playerSize / 2) + (orbSize / 2);
+
+                    if (distance < collisionDistance) {
+                        collectedAny = true;
+                    } else {
+                        remainingOrbs.push(orb);
+                    }
+                }
+
+                if(collectedAny) {
+                    health = Math.min(1, health + 0.1);
+                    setHealthOrbs(remainingOrbs);
+                }
+
+                // Calculate zoom based on distance from planet center
                 const distanceFromCenter = Math.sqrt(
-                    Math.pow(playerCenterX - window.innerWidth / 2, 2) + 
-                    Math.pow(playerCenterY - window.innerHeight / 2, 2)
+                    Math.pow(playerCenterX - planetCenter.x, 2) + 
+                    Math.pow(playerCenterY - planetCenter.y, 2)
                 );
                 
                 // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
-                const maxDistance = Math.max(window.innerWidth, window.innerHeight) / 2;
+                const maxDistance = Math.max(gameAreaWidth, gameAreaHeight);
                 const normalizedDistance = Math.min(distanceFromCenter / maxDistance, 1);
                 const minScale = 0.4; // Don't zoom out too much
                 const maxScale = 1.2; // Allow slight zoom in when very close
@@ -216,7 +151,7 @@ function Game({ maxHealth }) {
 
                 // Collision detection with planet
                 let grounded = false;
-                const currentPlayerRect = {
+                const playerRect = {
                     left: x,
                     right: x + playerSize,
                     top: y,
@@ -224,24 +159,24 @@ function Game({ maxHealth }) {
                 };
 
                 const planetRect = {
-                    left: gameAreaX,
-                    right: gameAreaX + gameAreaWidth,
-                    top: gameAreaY,
-                    bottom: gameAreaY + gameAreaHeight
+                    left: 0,
+                    right: gameAreaWidth,
+                    top: 0,
+                    bottom: gameAreaHeight
                 };
 
-                const isColliding = currentPlayerRect.right > planetRect.left &&
-                                  currentPlayerRect.left < planetRect.right &&
-                                  currentPlayerRect.bottom > planetRect.top &&
-                                  currentPlayerRect.top < planetRect.bottom;
+                const isColliding = playerRect.right > planetRect.left &&
+                                  playerRect.left < planetRect.right &&
+                                  playerRect.bottom > planetRect.top &&
+                                  playerRect.top < planetRect.bottom;
 
                 if (isColliding) {
                     grounded = true;
                    
-                    const penLeft = currentPlayerRect.right - planetRect.left;
-                    const penRight = planetRect.right - currentPlayerRect.left;
-                    const penTop = currentPlayerRect.bottom - planetRect.top;
-                    const penBottom = planetRect.bottom - currentPlayerRect.top;
+                    const penLeft = playerRect.right - planetRect.left;
+                    const penRight = planetRect.right - playerRect.left;
+                    const penTop = playerRect.bottom - planetRect.top;
+                    const penBottom = planetRect.bottom - playerRect.top;
 
                     const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
@@ -267,43 +202,44 @@ function Game({ maxHealth }) {
                 if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
                 if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
 
-                return { x, y, vx, vy, grounded };
+                return { x, y, vx, vy, grounded, health };
             });
 
             animationFrameId = requestAnimationFrame(gameLoop);
         };
 
-        animationFrameId = requestAnimationFrame(gameLoop);
+        gameLoop();
 
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [initialized, maxHealth]);
+    }, [initialized]);
 
     return (
-        <div className="game-container" style={{
-            transform: `scale(${gameScale})`,
-            transformOrigin: 'center center',
-            transition: 'transform 0.1s ease-out'
-        }}>
-            <main ref={gameAreaRef} >
+        <>
+            <main ref={gameAreaRef} style={{
+                transform: `scale(${gameScale})`,
+                transformOrigin: 'center',
+                transition: 'transform 0.1s ease-out'
+            }}>
+                <div ref={playerRef} className="player" style={{
+                    transform: `translate(${playerState.x}px, ${playerState.y}px)`
+                }}></div>
                 <div className="health-bar-container">
-                    <div className="health-bar" style={{ width: `${(health / maxHealth) * 100}%` }}></div>
+                    <div className="health-bar" style={{ width: `${playerState.health * 100}%` }}></div>
                 </div>
                 <h1>You Just Lost The Game</h1>
+                {healthOrbs.map(orb => (
+                    <div
+                        key={orb.id}
+                        className="health-orb"
+                        style={{
+                            left: `${orb.x}px`,
+                            top: `${orb.y}px`
+                        }}
+                    ></div>
+                ))}
             </main>
-            <div ref={playerRef} className="player" style={{
-                position: 'absolute',
-                transform: `translate(${playerState.x}px, ${playerState.y}px)`
-            }}></div>
-            {orbs.map(orb => (
-                <div key={orb.id} className="orb" style={{
-                    position: 'absolute',
-                    transform: `translate(${orb.x}px, ${orb.y}px)`
-                }}></div>
-            ))}
-        </div>
+        </>
     );
 }
-
-export default Game;

@@ -86,5 +86,3 @@ const AudioManager = (() => {
         }
     };
 })();
-
-export default AudioManager;

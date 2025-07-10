@@ -1,4 +1,3 @@
-import React from 'react';
 const { useState, useEffect } = React;
 
 function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) {
@@ -26,5 +25,3 @@ function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) {
         </div>
     );
 }
-
-export default DisclaimerOverlay;
