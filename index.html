@@ -315,16 +315,27 @@
             );
         }
 
+        function FadeInOverlay() {
+            return <div className="fade-in-overlay"></div>;
+        }
+
         function App() {
             const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
             const [showDisclaimer, setShowDisclaimer] = useState(true);
+            const [isFading, setIsFading] = useState(false);
 
             const handlePlayClick = async () => {
                 await lossesCollection.create({});
                 setShowDisclaimer(false);
+                setIsFading(true);
+                
                 // Initialize and play audio on user interaction
                 await AudioManager.init();
                 AudioManager.play();
+
+                setTimeout(() => {
+                    setIsFading(false);
+                }, 5000); // Corresponds to fade animation duration
             };
 
             const mostRecentLoss = useMemo(() => {
@@ -369,6 +380,7 @@
 
             return (
                 <>
+                    {isFading && <FadeInOverlay />}
                     <div className="corner top-left">
                         <div className="counter-box">
                             <span>Most Recent Loser</span>
