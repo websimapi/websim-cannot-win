@@ -1,4 +1,4 @@
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
 function Game() {
     const gameAreaRef = useRef(null);
@@ -16,6 +16,38 @@ function Game() {
     const [initialized, setInitialized] = useState(false);
     const keysPressed = useRef({});
     const [healthOrbs, setHealthOrbs] = useState([]);
+
+    const collectOrbSound = useRef(null);
+    const audioContextRef = useRef(null);
+
+    useEffect(() => {
+        // Initialize Web Audio for sound effects
+        const initAudio = async () => {
+            if (audioContextRef.current) return;
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const response = await fetch('/collect_orb.mp3');
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = await context.decodeAudioData(arrayBuffer);
+                collectOrbSound.current = buffer;
+                audioContextRef.current = context;
+            } catch (error) {
+                console.error("Failed to initialize sound effect audio:", error);
+            }
+        };
+        initAudio();
+    }, []);
+
+    const playSound = useCallback((buffer) => {
+        if (!buffer || !audioContextRef.current) return;
+        if (audioContextRef.current.state === 'suspended') {
+            audioContextRef.current.resume();
+        }
+        const source = audioContextRef.current.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContextRef.current.destination);
+        source.start(0);
+    }, []);
 
     useEffect(() => {
         if (gameAreaRef.current && !initialized) {
@@ -121,34 +153,6 @@ function Game() {
                 vx *= 0.98;
                 vy *= 0.98;
 
-                // Orb collection
-                // Both player and orbs are in the same game-world coordinate system now.
-                const playerCenterX = x + playerSize / 2;
-                const playerCenterY = y + playerSize / 2;
-                
-                const remainingOrbs = [];
-                let collectedAny = false;
-                for(const orb of healthOrbs) {
-                    const orbCenterX = orb.x + orbSize / 2;
-                    const orbCenterY = orb.y + orbSize / 2;
-
-                    const dx = playerCenterX - orbCenterX;
-                    const dy = playerCenterY - orbCenterY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    const collisionDistance = (playerSize / 2) + (orbSize / 2);
-
-                    if (distance < collisionDistance) {
-                        collectedAny = true;
-                    } else {
-                        remainingOrbs.push(orb);
-                    }
-                }
-
-                if(collectedAny) {
-                    health = Math.min(1, health + 0.1);
-                    setHealthOrbs(remainingOrbs);
-                }
-
                 // Calculate zoom based on distance from planet center
                 const playerDistX = x + playerSize / 2;
                 const playerDistY = y + playerSize / 2;
@@ -198,7 +202,7 @@ function Game() {
                     const penLeft = playerRect.right - planetRect.left;
                     const penRight = planetRect.right - playerRect.left;
                     const penTop = playerRect.bottom - planetRect.top;
-                    const penBottom = planetRect.bottom - playerRect.top;
+                    const penBottom = playerRect.bottom - playerRect.top;
 
                     const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
@@ -227,6 +231,39 @@ function Game() {
                 return { x, y, vx, vy, grounded, health };
             });
 
+            // Orb collection logic, runs outside of setPlayerState to avoid stale state
+            const playerCenterX = playerState.x + playerSize / 2;
+            const playerCenterY = playerState.y + playerSize / 2;
+
+            const remainingOrbs = [];
+            let collectedCount = 0;
+            
+            for (const orb of healthOrbs) {
+                const orbCenterX = orb.x + orbSize / 2;
+                const orbCenterY = orb.y + orbSize / 2;
+
+                const dx = playerCenterX - orbCenterX;
+                const dy = playerCenterY - orbCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const collisionDistance = (playerSize / 2) + (orbSize / 2);
+
+                if (distance < collisionDistance) {
+                    collectedCount++;
+                } else {
+                    remainingOrbs.push(orb);
+                }
+            }
+            
+            if (collectedCount > 0) {
+                setPlayerState(p => ({
+                    ...p,
+                    health: Math.min(1, p.health + (0.1 * collectedCount))
+                }));
+                setHealthOrbs(remainingOrbs);
+                // Play sound for each collected orb, but just once per frame if multiple are hit
+                playSound(collectOrbSound.current);
+            }
+
             animationFrameId = requestAnimationFrame(gameLoop);
         };
 
@@ -235,7 +272,7 @@ function Game() {
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [initialized]);
+    }, [initialized, playerState, healthOrbs, playSound]);
 
     return (
         <>
