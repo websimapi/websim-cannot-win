@@ -12,10 +12,141 @@
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect, useSyncExternalStore, useMemo } = React;
+        const { useState, useEffect, useSyncExternalStore, useMemo, useRef, useCallback } = React;
 
         const room = new WebsimSocket();
         const lossesCollection = room.collection('losses_v3');
+
+        function Game() {
+            const gameAreaRef = useRef(null);
+            const playerRef = useRef(null);
+            
+            const [playerState, setPlayerState] = useState({
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2 + 200,
+                vx: 0,
+                vy: 0,
+                grounded: false
+            });
+
+            const keysPressed = useRef({});
+
+            useEffect(() => {
+                const handleKeyDown = (e) => { keysPressed.current[e.code] = true; };
+                const handleKeyUp = (e) => { keysPressed.current[e.code] = false; };
+                window.addEventListener('keydown', handleKeyDown);
+                window.addEventListener('keyup', handleKeyUp);
+                return () => {
+                    window.removeEventListener('keydown', handleKeyDown);
+                    window.removeEventListener('keyup', handleKeyUp);
+                };
+            }, []);
+
+            useEffect(() => {
+                let animationFrameId;
+
+                const gameLoop = () => {
+                    if (!gameAreaRef.current) return;
+
+                    const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
+                    const planetCenter = {
+                        x: gameAreaRect.left + gameAreaRect.width / 2,
+                        y: gameAreaRect.top + gameAreaRect.height / 2
+                    };
+                    const playerSize = 30;
+
+                    setPlayerState(p => {
+                        let { x, y, vx, vy } = p;
+                        
+                        // Gravity
+                        const gravity = 0.5;
+                        const dx = planetCenter.x - (x + playerSize / 2);
+                        const dy = planetCenter.y - (y + playerSize / 2);
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist > 0) {
+                            vx += (dx / dist) * gravity;
+                            vy += (dy / dist) * gravity;
+                        }
+
+                        // Collision detection with planet
+                        let grounded = false;
+                        const playerRect = {
+                            left: x,
+                            right: x + playerSize,
+                            top: y,
+                            bottom: y + playerSize
+                        };
+
+                        const isColliding = playerRect.right > gameAreaRect.left &&
+                                          playerRect.left < gameAreaRect.right &&
+                                          playerRect.bottom > gameAreaRect.top &&
+                                          playerRect.top < gameAreaRect.bottom;
+                        
+                        if (isColliding) {
+                             grounded = true;
+                            // Basic collision response: find shallowest penetration and push out
+                            const penLeft = playerRect.right - gameAreaRect.left;
+                            const penRight = gameAreaRect.right - playerRect.left;
+                            const penTop = playerRect.bottom - gameAreaRect.top;
+                            const penBottom = gameAreaRect.bottom - playerRect.top;
+
+                            const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+
+                            if (minPen === penTop) { // On top surface
+                                y = gameAreaRect.top - playerSize;
+                                vy = 0;
+                            } else if (minPen === penBottom) { // On bottom surface
+                                y = gameAreaRect.bottom;
+                                vy = 0;
+                            } else if (minPen === penLeft) { // On left surface
+                                x = gameAreaRect.left - playerSize;
+                                vx = 0;
+                            } else { // On right surface
+                                x = gameAreaRect.right;
+                                vx = 0;
+                            }
+                        }
+
+                        // Controls
+                        const moveForce = 1;
+                        if (keysPressed.current['ArrowUp']) vy -= moveForce;
+                        if (keysPressed.current['ArrowDown']) vy += moveForce;
+                        if (keysPressed.current['ArrowLeft']) vx -= moveForce;
+                        if (keysPressed.current['ArrowRight']) vx += moveForce;
+
+                        // Update position
+                        x += vx;
+                        y += vy;
+
+                        // Drag
+                        vx *= 0.98;
+                        vy *= 0.98;
+
+                        return { x, y, vx, vy, grounded };
+                    });
+
+                    animationFrameId = requestAnimationFrame(gameLoop);
+                };
+
+                gameLoop();
+
+                return () => {
+                    cancelAnimationFrame(animationFrameId);
+                };
+            }, []);
+
+            return (
+                <>
+                    <div ref={playerRef} className="player" style={{
+                        transform: `translate(${playerState.x}px, ${playerState.y}px)`
+                    }}></div>
+                    <main ref={gameAreaRef}>
+                        <h1>You Just Lost The Game</h1>
+                    </main>
+                </>
+            );
+        }
 
         function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) {
             const [currentUser, setCurrentUser] = useState(null);
@@ -115,9 +246,7 @@
                             <div id="week-counter" className="counter-value">{weekCount}</div>
                         </div>
                     </div>
-                    <main>
-                        <h1>You Just Lost The Game</h1>
-                    </main>
+                    <Game />
                 </>
             );
         }
