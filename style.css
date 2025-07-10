@@ -49,13 +49,12 @@ body::before {
 
 main {
     position: relative;
+    width: min(700px, 80vw);
     padding: 2rem 4rem;
     background: rgba(255, 255, 255, 0.9);
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(0, 0, 0, 0.05);
-    min-width: 600px;
-    width: max-content;
 }
 
 h1 {
