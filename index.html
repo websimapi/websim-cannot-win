@@ -28,6 +28,7 @@
                 vy: 0,
                 grounded: false
             });
+            const [camera, setCamera] = useState({ zoom: 1 });
             const [initialized, setInitialized] = useState(false);
             const keysPressed = useRef({});
 
@@ -60,6 +61,7 @@
                 if (!initialized) return;
 
                 let animationFrameId;
+                let lastCameraZoom = camera.zoom;
 
                 const gameLoop = () => {
                     if (!gameAreaRef.current) return;
@@ -71,6 +73,7 @@
                     };
                     const playerSize = 30;
 
+                    let nextPlayerState;
                     setPlayerState(p => {
                         let { x, y, vx, vy } = p;
                         
@@ -95,6 +98,11 @@
 
                         // Collision detection with planet
                         let grounded = false;
+                        
+                        // Use offsetWidth/Height which are not affected by transforms, for stable physics
+                        const gameAreaWidth = gameAreaRef.current.offsetWidth;
+                        const gameAreaHeight = gameAreaRef.current.offsetHeight;
+
                         const playerRect = {
                             left: x,
                             right: x + playerSize,
@@ -103,19 +111,20 @@
                             centerX: x + playerSize / 2,
                             centerY: y + playerSize / 2
                         };
-
+                        
+                        // Collision logic assumes game area is at (0,0) of its own coordinate system
                         const isColliding = playerRect.right > 0 &&
-                                          playerRect.left < gameAreaRect.width &&
+                                          playerRect.left < gameAreaWidth &&
                                           playerRect.bottom > 0 &&
-                                          playerRect.top < gameAreaRect.height;
+                                          playerRect.top < gameAreaHeight;
                         
                         if (isColliding) {
                              grounded = true;
                             // Find shallowest penetration and push out
                             const penLeft = playerRect.right;
-                            const penRight = gameAreaRect.width - playerRect.left;
+                            const penRight = gameAreaWidth - playerRect.left;
                             const penTop = playerRect.bottom;
-                            const penBottom = gameAreaRect.height - playerRect.top;
+                            const penBottom = gameAreaHeight - playerRect.top;
 
                             const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
@@ -123,13 +132,13 @@
                                 y = -playerSize;
                                 vy = 0;
                             } else if (minPen === penBottom) { // Pushing out from bottom of box
-                                y = gameAreaRect.height;
+                                y = gameAreaHeight;
                                 vy = 0;
                             } else if (minPen === penLeft) { // Pushing out from left of box
                                 x = -playerSize;
                                 vx = 0;
                             } else { // Pushing out from right of box
-                                x = gameAreaRect.width;
+                                x = gameAreaWidth;
                                 vx = 0;
                             }
                         }
@@ -141,8 +150,37 @@
                         if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
                         if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
 
-                        return { x, y, vx, vy, grounded };
+                        nextPlayerState = { x, y, vx, vy, grounded };
+                        return nextPlayerState;
                     });
+                    
+                    // Camera logic
+                    if (gameAreaRef.current && nextPlayerState) {
+                        const gameAreaWidth = gameAreaRef.current.offsetWidth;
+                        const gameAreaHeight = gameAreaRef.current.offsetHeight;
+                        
+                        const bounds = {
+                            minX: Math.min(0, nextPlayerState.x),
+                            maxX: Math.max(gameAreaWidth, nextPlayerState.x + playerSize),
+                            minY: Math.min(0, nextPlayerState.y),
+                            maxY: Math.max(gameAreaHeight, nextPlayerState.y + playerSize),
+                        };
+
+                        const boundsWidth = bounds.maxX - bounds.minX;
+                        const boundsHeight = bounds.maxY - bounds.minY;
+                        
+                        const padding = 1.2; // 20% padding
+                        const requiredZoomX = window.innerWidth / (boundsWidth * padding);
+                        const requiredZoomY = window.innerHeight / (boundsHeight * padding);
+                        
+                        let targetZoom = Math.min(requiredZoomX, requiredZoomY, 1.0);
+
+                        // Smooth zoom interpolation
+                        lastCameraZoom = lastCameraZoom + (targetZoom - lastCameraZoom) * 0.05;
+
+                        setCamera({ zoom: lastCameraZoom });
+                    }
+
 
                     animationFrameId = requestAnimationFrame(gameLoop);
                 };
@@ -155,14 +193,14 @@
             }, [initialized]);
 
             return (
-                <>
+                <div className="camera-container" style={{ transform: `scale(${camera.zoom})`}}>
                     <main ref={gameAreaRef}>
                         <div ref={playerRef} className="player" style={{
                             transform: `translate(${playerState.x}px, ${playerState.y}px)`
                         }}></div>
                         <h1>You Just Lost The Game</h1>
                     </main>
-                </>
+                </div>
             );
         }
 
