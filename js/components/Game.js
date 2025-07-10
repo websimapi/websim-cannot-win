@@ -4,6 +4,7 @@ function Game({ maxHealth }) {
     const gameAreaRef = useRef(null);
     const playerRef = useRef(null);
     const [health, setHealth] = useState(maxHealth);
+    const [orbs, setOrbs] = useState([]);
     
     const [playerState, setPlayerState] = useState({
         x: -100, // Start off-screen
@@ -32,6 +33,38 @@ function Game({ maxHealth }) {
             });
             setInitialized(true);
         }
+    }, [initialized]);
+    
+    useEffect(() => {
+        if (!initialized) return;
+
+        const MAX_ORBS = 15;
+        const ORB_SPAWN_RATE = 2000; // ms
+
+        const spawnOrb = () => {
+            if (!gameAreaRef.current) return;
+
+            setOrbs(prevOrbs => {
+                if (prevOrbs.length >= MAX_ORBS) {
+                    return prevOrbs;
+                }
+                const gameAreaWidth = gameAreaRef.current.offsetWidth;
+                const gameAreaHeight = gameAreaRef.current.offsetHeight;
+
+                const newOrb = {
+                    id: Date.now() + Math.random(),
+                    x: Math.random() * gameAreaWidth,
+                    y: Math.random() * gameAreaHeight,
+                    vx: (Math.random() - 0.5) * 1,
+                    vy: (Math.random() - 0.5) * 1
+                };
+                return [...prevOrbs, newOrb];
+            });
+        };
+
+        const intervalId = setInterval(spawnOrb, ORB_SPAWN_RATE);
+        return () => clearInterval(intervalId);
+
     }, [initialized]);
 
     useEffect(() => {
@@ -188,6 +221,11 @@ function Game({ maxHealth }) {
                 <div className="health-bar-container">
                     <div className="health-bar" style={{ width: `${(health / maxHealth) * 100}%` }}></div>
                 </div>
+                {orbs.map(orb => (
+                    <div key={orb.id} className="orb" style={{
+                        transform: `translate(${orb.x}px, ${orb.y}px)`
+                    }}></div>
+                ))}
                 <div ref={playerRef} className="player" style={{
                     transform: `translate(${playerState.x}px, ${playerState.y}px)`
                 }}></div>

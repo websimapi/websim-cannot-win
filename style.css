@@ -214,6 +214,20 @@ h1 {
     transition: width 0.2s linear;
 }
 
+.orb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 15px;
+    height: 15px;
+    background-color: #d90429;
+    border-radius: 50%;
+    border: 1px solid white;
+    box-shadow: 0 0 8px rgba(255, 0, 0, 0.7);
+    z-index: 15;
+    will-change: transform;
+}
+
 .player {
     position: absolute;
     top: 0;
