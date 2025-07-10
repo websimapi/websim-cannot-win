@@ -35,16 +35,16 @@ function Game() {
 
         const orbSpawner = setInterval(() => {
             if (!gameAreaRef.current) return;
-            const gameAreaWidth = gameAreaRef.current.offsetWidth;
-            const gameAreaHeight = gameAreaRef.current.offsetHeight;
+            const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
             const padding = 50; // Don't spawn too close to edges
 
             setHealthOrbs(orbs => [
                 ...orbs,
                 {
                     id: Date.now(),
-                    x: padding + Math.random() * (gameAreaWidth - padding * 2),
-                    y: padding + Math.random() * (gameAreaHeight - padding * 2),
+                    // Position relative to the viewport
+                    x: gameAreaRect.left + padding + Math.random() * (gameAreaRect.width - padding * 2),
+                    y: gameAreaRect.top + padding + Math.random() * (gameAreaRect.height - padding * 2),
                 }
             ]);
         }, 5000); // Spawn every 5 seconds
@@ -74,6 +74,7 @@ function Game() {
             // Use offsetWidth and offsetHeight for consistent dimensions.
             const gameAreaWidth = gameAreaRef.current.offsetWidth;
             const gameAreaHeight = gameAreaRef.current.offsetHeight;
+            const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
             
             const planetCenter = {
                 x: gameAreaWidth / 2, // relative to gameArea
@@ -105,18 +106,22 @@ function Game() {
                 vy *= 0.98;
 
                 // Orb collection
-                const playerCenterX = x + playerSize / 2;
-                const playerCenterY = y + playerSize / 2;
+                // Player's visual center on screen, accounting for scale
+                const playerVisualCenterX = gameAreaRect.left + (x + playerSize / 2) * gameScale;
+                const playerVisualCenterY = gameAreaRect.top + (y + playerSize / 2) * gameScale;
                 
                 const remainingOrbs = [];
                 let collectedAny = false;
                 for(const orb of healthOrbs) {
+                    // Orb center is already in screen coordinates
                     const orbCenterX = orb.x + orbSize / 2;
                     const orbCenterY = orb.y + orbSize / 2;
-                    const dx = playerCenterX - orbCenterX;
-                    const dy = playerCenterY - orbCenterY;
+
+                    const dx = playerVisualCenterX - orbCenterX;
+                    const dy = playerVisualCenterY - orbCenterY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    const collisionDistance = (playerSize / 2) + (orbSize / 2);
+                    // Player's visual size is scaled
+                    const collisionDistance = (playerSize / 2 * gameScale) + (orbSize / 2);
 
                     if (distance < collisionDistance) {
                         collectedAny = true;
@@ -131,6 +136,9 @@ function Game() {
                 }
 
                 // Calculate zoom based on distance from planet center
+                const playerCenterX = x + playerSize / 2;
+                const playerCenterY = y + playerSize / 2;
+
                 const distanceFromCenter = Math.sqrt(
                     Math.pow(playerCenterX - planetCenter.x, 2) + 
                     Math.pow(playerCenterY - planetCenter.y, 2)
@@ -229,17 +237,17 @@ function Game() {
                     <div className="health-bar" style={{ width: `${playerState.health * 100}%` }}></div>
                 </div>
                 <h1>You Just Lost The Game</h1>
-                {healthOrbs.map(orb => (
-                    <div
-                        key={orb.id}
-                        className="health-orb"
-                        style={{
-                            left: `${orb.x}px`,
-                            top: `${orb.y}px`
-                        }}
-                    ></div>
-                ))}
             </main>
+            {healthOrbs.map(orb => (
+                <div
+                    key={orb.id}
+                    className="health-orb"
+                    style={{
+                        left: `${orb.x}px`,
+                        top: `${orb.y}px`
+                    }}
+                ></div>
+            ))}
         </>
     );
 }
