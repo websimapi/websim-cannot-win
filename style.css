@@ -155,6 +155,24 @@ h1 {
     transform: translateY(0);
 }
 
+.sonauto-link {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    z-index: 101;
+}
+
+.sonauto-link img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    transition: transform 0.2s ease-in-out;
+}
+
+.sonauto-link:hover img {
+    transform: scale(1.1);
+}
+
 .player {
     position: absolute;
     top: 0;
