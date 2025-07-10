@@ -115,7 +115,7 @@
                             return prevScale + scaleDiff * 0.1; // Smooth interpolation
                         });
 
-                        // Collision detection with planet boundaries - keep player inside the container
+                        // Collision detection with planet
                         let grounded = false;
                         const playerRect = {
                             left: x,
@@ -126,26 +126,34 @@
                             centerY: y + playerSize / 2
                         };
 
-                        // Check if player is hitting the boundaries and keep them inside
-                        if (playerRect.left < 0) {
-                            x = 0;
-                            vx = Math.abs(vx) * 0.5; // Bounce with energy loss
-                            grounded = true;
-                        }
-                        if (playerRect.right > gameAreaRect.width) {
-                            x = gameAreaRect.width - playerSize;
-                            vx = -Math.abs(vx) * 0.5; // Bounce with energy loss
-                            grounded = true;
-                        }
-                        if (playerRect.top < 0) {
-                            y = 0;
-                            vy = Math.abs(vy) * 0.5; // Bounce with energy loss
-                            grounded = true;
-                        }
-                        if (playerRect.bottom > gameAreaRect.height) {
-                            y = gameAreaRect.height - playerSize;
-                            vy = -Math.abs(vy) * 0.5; // Bounce with energy loss
-                            grounded = true;
+                        const isColliding = playerRect.right > 0 &&
+                                          playerRect.left < gameAreaRect.width &&
+                                          playerRect.bottom > 0 &&
+                                          playerRect.top < gameAreaRect.height;
+                        
+                        if (isColliding) {
+                             grounded = true;
+                            // Find shallowest penetration and push out
+                            const penLeft = playerRect.right;
+                            const penRight = gameAreaRect.width - playerRect.left;
+                            const penTop = playerRect.bottom;
+                            const penBottom = gameAreaRect.height - playerRect.top;
+
+                            const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+
+                            if (minPen === penTop) { // Pushing out from top of box
+                                y = -playerSize;
+                                vy = 0;
+                            } else if (minPen === penBottom) { // Pushing out from bottom of box
+                                y = gameAreaRect.height;
+                                vy = 0;
+                            } else if (minPen === penLeft) { // Pushing out from left of box
+                                x = -playerSize;
+                                vx = 0;
+                            } else { // Pushing out from right of box
+                                x = gameAreaRect.width;
+                                vx = 0;
+                            }
                         }
 
                         // Controls

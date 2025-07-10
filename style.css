@@ -54,6 +54,9 @@ main {
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(0, 0, 0, 0.05);
+    min-width: 600px;
+    width: auto;
+    display: inline-block;
 }
 
 h1 {
