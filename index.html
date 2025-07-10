@@ -66,31 +66,22 @@
                     if (!gameAreaRef.current) return;
 
                     const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-                    const planetRect = { // Planet is the game area itself
-                        left: 0,
-                        top: 0,
-                        right: gameAreaRect.width,
-                        bottom: gameAreaRect.height,
+                    const planetCenter = {
+                        x: gameAreaRect.width / 2, // relative to gameArea
+                        y: gameAreaRect.height / 2 // relative to gameArea
                     };
                     const playerSize = 30;
 
                     setPlayerState(p => {
                         let { x, y, vx, vy } = p;
                         
-                        // --- REVISED GRAVITY LOGIC ---
-                        const gravity = 0.3;
-                        const playerCenterX = x + playerSize / 2;
-                        const playerCenterY = y + playerSize / 2;
-
-                        // Find the closest point on the planet rectangle to the player
-                        const closestX = Math.max(planetRect.left, Math.min(playerCenterX, planetRect.right));
-                        const closestY = Math.max(planetRect.top, Math.min(playerCenterY, planetRect.bottom));
-
-                        const dx = closestX - playerCenterX;
-                        const dy = closestY - playerCenterY;
+                        // Gravity
+                        const gravity = 0.3; // slightly reduced for better control
+                        const dx = planetCenter.x - (x + playerSize / 2);
+                        const dy = planetCenter.y - (y + playerSize / 2);
                         const dist = Math.sqrt(dx * dx + dy * dy);
                         
-                        if (dist > 0) { // Apply gravity towards the closest point
+                        if (dist > 0) {
                             vx += (dx / dist) * gravity;
                             vy += (dy / dist) * gravity;
                         }
@@ -104,58 +95,57 @@
                         vy *= 0.98;
 
                         // Calculate zoom based on distance from planet center
+                        const playerCenterX = x + playerSize / 2;
+                        const playerCenterY = y + playerSize / 2;
                         const distanceFromCenter = Math.sqrt(
-                            Math.pow(playerCenterX - (gameAreaRect.width / 2), 2) + 
-                            Math.pow(playerCenterY - (gameAreaRect.height / 2), 2)
+                            Math.pow(playerCenterX - planetCenter.x, 2) + 
+                            Math.pow(playerCenterY - planetCenter.y, 2)
                         );
                         
-                        // Scale calculation
+                        // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
                         const maxDistance = Math.max(gameAreaRect.width, gameAreaRect.height);
                         const normalizedDistance = Math.min(distanceFromCenter / maxDistance, 1);
-                        const minScale = 0.4;
-                        const maxScale = 1.2;
+                        const minScale = 0.4; // Don't zoom out too much
+                        const maxScale = 1.2; // Allow slight zoom in when very close
                         const targetScale = maxScale - (normalizedDistance * (maxScale - minScale));
                         
-                        setGameScale(prevScale => prevScale + (targetScale - prevScale) * 0.1);
+                        // Smooth scale transition
+                        setGameScale(prevScale => {
+                            const scaleDiff = targetScale - prevScale;
+                            return prevScale + scaleDiff * 0.1; // Smooth interpolation
+                        });
 
-                        // --- REVISED COLLISION LOGIC ---
+                        // Collision detection with planet boundaries - keep player inside the container
                         let grounded = false;
                         const playerRect = {
-                            left: x, right: x + playerSize,
-                            top: y, bottom: y + playerSize,
+                            left: x,
+                            right: x + playerSize,
+                            top: y,
+                            bottom: y + playerSize,
                             centerX: x + playerSize / 2,
                             centerY: y + playerSize / 2
                         };
 
-                        // Check for collision (overlap)
-                        const isColliding = playerRect.right > planetRect.left &&
-                                          playerRect.left < planetRect.right &&
-                                          playerRect.bottom > planetRect.top &&
-                                          playerRect.top < planetRect.bottom;
-                        
-                        if (isColliding) {
-                             grounded = true;
-                            // Find shallowest penetration axis to push the player out
-                            const penLeft = playerRect.right - planetRect.left;
-                            const penRight = planetRect.right - playerRect.left;
-                            const penTop = playerRect.bottom - planetRect.top;
-                            const penBottom = planetRect.bottom - playerRect.top;
-
-                            const minPen = Math.min(penLeft, penRight, penTop, penBottom);
-
-                            if (minPen === penTop) { // Push out from top edge
-                                y = planetRect.top - playerSize;
-                                if (vy > 0) vy = 0; // Stop downward velocity on collision
-                            } else if (minPen === penBottom) { // Push out from bottom edge
-                                y = planetRect.bottom;
-                                if (vy < 0) vy = 0;
-                            } else if (minPen === penLeft) { // Push out from left edge
-                                x = planetRect.left - playerSize;
-                                if (vx > 0) vx = 0;
-                            } else { // (minPen === penRight) Push out from right edge
-                                x = planetRect.right;
-                                if (vx < 0) vx = 0;
-                            }
+                        // Check if player is hitting the boundaries and keep them inside
+                        if (playerRect.left < 0) {
+                            x = 0;
+                            vx = Math.abs(vx) * 0.5; // Bounce with energy loss
+                            grounded = true;
+                        }
+                        if (playerRect.right > gameAreaRect.width) {
+                            x = gameAreaRect.width - playerSize;
+                            vx = -Math.abs(vx) * 0.5; // Bounce with energy loss
+                            grounded = true;
+                        }
+                        if (playerRect.top < 0) {
+                            y = 0;
+                            vy = Math.abs(vy) * 0.5; // Bounce with energy loss
+                            grounded = true;
+                        }
+                        if (playerRect.bottom > gameAreaRect.height) {
+                            y = gameAreaRect.height - playerSize;
+                            vy = -Math.abs(vy) * 0.5; // Bounce with energy loss
+                            grounded = true;
                         }
 
                         // Controls
