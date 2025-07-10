@@ -70,38 +70,6 @@ const AudioManager = (() => {
             await loadMusic('/yjltg-robo.ogg');
             audioInitialized = true;
         },
-        isInitialized() {
-            return audioInitialized && audioContext;
-        },
-        async createSoundBufferFromFrequency(frequency, duration, type = 'sine', gain = 1.0) {
-            if (!audioContext) return null;
-            const sampleRate = audioContext.sampleRate;
-            const frameCount = sampleRate * duration;
-            const buffer = audioContext.createBuffer(1, frameCount, sampleRate);
-            const data = buffer.getChannelData(0);
-
-            for (let i = 0; i < frameCount; i++) {
-                const time = i / sampleRate;
-                data[i] = Math.sin(frequency * 2 * Math.PI * time) * gain;
-            }
-            
-            // Quick fade out to prevent clicking
-            const fadeOutDuration = 0.05;
-            const fadeOutSamples = Math.floor(sampleRate * fadeOutDuration);
-            for (let i = 0; i < fadeOutSamples; i++) {
-                if (frameCount - 1 - i < 0) break;
-                data[frameCount - 1 - i] *= (i / fadeOutSamples);
-            }
-
-            return buffer;
-        },
-        playSoundBuffer(buffer) {
-            if (!audioContext || !buffer) return;
-            const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioContext.destination);
-            source.start();
-        },
         play() {
             if (!audioInitialized || isPlaying) return;
             if (audioContext && audioContext.state === 'suspended') {
