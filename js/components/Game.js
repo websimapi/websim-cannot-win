@@ -22,7 +22,7 @@ function Game() {
             const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
             setPlayerState(p => ({
                 ...p,
-                x: gameAreaRef.current.offsetWidth / 2 - 15, // Center horizontally relative to gameArea
+                x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
                 y: -50, // Start 50px above the game area, relative to it
             }));
             setInitialized(true);
@@ -37,17 +37,16 @@ function Game() {
             if (!gameAreaRef.current) return;
             const gameAreaWidth = gameAreaRef.current.offsetWidth;
             const gameAreaHeight = gameAreaRef.current.offsetHeight;
-            const padding = 50; // Don't spawn too close to edges
+            const spawnBoxSize = Math.max(gameAreaWidth, gameAreaHeight) * 2.5;
 
-            setHealthOrbs(orbs => [
-                ...orbs,
-                {
-                    id: Date.now(),
-                    // Position relative to the game area
-                    x: padding + Math.random() * (gameAreaWidth - padding * 2),
-                    y: padding + Math.random() * (gameAreaHeight - padding * 2),
-                }
-            ]);
+            // Spawn orbs in a large area around the game's center, with coordinates relative to the game area
+            const newOrb = {
+                id: Date.now(),
+                x: (gameAreaWidth / 2) + (Math.random() - 0.5) * spawnBoxSize,
+                y: (gameAreaHeight / 2) + (Math.random() - 0.5) * spawnBoxSize,
+            };
+
+            setHealthOrbs(orbs => [...orbs, newOrb]);
         }, 5000); // Spawn every 5 seconds
 
         return () => clearInterval(orbSpawner);
@@ -106,12 +105,13 @@ function Game() {
                 vy *= 0.98;
 
                 // Orb collection
+                // Both player and orbs are in the same game-world coordinate system now.
                 const playerCenterX = x + playerSize / 2;
                 const playerCenterY = y + playerSize / 2;
-
+                
                 const remainingOrbs = [];
                 let collectedAny = false;
-                for (const orb of healthOrbs) {
+                for(const orb of healthOrbs) {
                     const orbCenterX = orb.x + orbSize / 2;
                     const orbCenterY = orb.y + orbSize / 2;
 
@@ -133,12 +133,12 @@ function Game() {
                 }
 
                 // Calculate zoom based on distance from planet center
-                const playerGameCenterX = x + playerSize / 2;
-                const playerGameCenterY = y + playerSize / 2;
+                const playerDistX = x + playerSize / 2;
+                const playerDistY = y + playerSize / 2;
 
                 const distanceFromCenter = Math.sqrt(
-                    Math.pow(playerGameCenterX - planetCenter.x, 2) +
-                    Math.pow(playerGameCenterY - planetCenter.y, 2)
+                    Math.pow(playerDistX - planetCenter.x, 2) + 
+                    Math.pow(playerDistY - planetCenter.y, 2)
                 );
                 
                 // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
@@ -218,7 +218,7 @@ function Game() {
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [initialized, healthOrbs]);
+    }, [initialized]);
 
     return (
         <>

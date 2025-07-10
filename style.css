@@ -234,5 +234,5 @@ h1 {
     border-radius: 50%;
     box-shadow: 0 0 15px #d90429, 0 0 5px #ff4d6d;
     z-index: 10;
-    will-change: transform; /* May not be needed as it's not moving, but good practice */
+    will-change: transform;
 }
