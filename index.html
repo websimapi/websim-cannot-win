@@ -15,7 +15,7 @@
         const { useState, useEffect, useSyncExternalStore, useMemo } = React;
 
         const room = new WebsimSocket();
-        const lossesCollection = room.collection('losses_v2');
+        const lossesCollection = room.collection('losses_v3');
 
         function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) {
             const [currentUser, setCurrentUser] = useState(null);
