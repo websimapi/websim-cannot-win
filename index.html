@@ -37,7 +37,7 @@
                     const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
                     setPlayerState({
                         x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
-                        y: -50, // Start 50px above the game area, relative to it
+                        y: -100, // Start 100px above the game area, relative to it
                         vx: 0,
                         vy: 0,
                         grounded: false
@@ -115,7 +115,7 @@
                             return prevScale + scaleDiff * 0.1; // Smooth interpolation
                         });
 
-                        // Collision detection with planet
+                        // Collision detection with planet - treat planet as solid rectangle
                         let grounded = false;
                         const playerRect = {
                             left: x,
@@ -126,33 +126,34 @@
                             centerY: y + playerSize / 2
                         };
 
-                        const isColliding = playerRect.right > 0 &&
-                                          playerRect.left < gameAreaRect.width &&
-                                          playerRect.bottom > 0 &&
-                                          playerRect.top < gameAreaRect.height;
+                        // Check if player is inside the planet bounds (collision)
+                        const isInsidePlanet = playerRect.right > 0 &&
+                                             playerRect.left < gameAreaRect.width &&
+                                             playerRect.bottom > 0 &&
+                                             playerRect.top < gameAreaRect.height;
                         
-                        if (isColliding) {
-                             grounded = true;
-                            // Find shallowest penetration and push out
-                            const penLeft = playerRect.right;
-                            const penRight = gameAreaRect.width - playerRect.left;
-                            const penTop = playerRect.bottom;
-                            const penBottom = gameAreaRect.height - playerRect.top;
+                        if (isInsidePlanet) {
+                            grounded = true;
+                            // Find the closest edge and push player out
+                            const distToLeft = playerRect.left;
+                            const distToRight = gameAreaRect.width - playerRect.right;
+                            const distToTop = playerRect.top;
+                            const distToBottom = gameAreaRect.height - playerRect.bottom;
 
-                            const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+                            const minDist = Math.min(Math.abs(distToLeft), Math.abs(distToRight), Math.abs(distToTop), Math.abs(distToBottom));
 
-                            if (minPen === penTop) { // Pushing out from top of box
-                                y = -playerSize;
-                                vy = 0;
-                            } else if (minPen === penBottom) { // Pushing out from bottom of box
-                                y = gameAreaRect.height;
-                                vy = 0;
-                            } else if (minPen === penLeft) { // Pushing out from left of box
+                            if (minDist === Math.abs(distToLeft)) { // Push out to the left
                                 x = -playerSize;
-                                vx = 0;
-                            } else { // Pushing out from right of box
+                                vx = Math.min(vx, -Math.abs(vx) * 0.5); // Bounce effect
+                            } else if (minDist === Math.abs(distToRight)) { // Push out to the right
                                 x = gameAreaRect.width;
-                                vx = 0;
+                                vx = Math.max(vx, Math.abs(vx) * 0.5); // Bounce effect
+                            } else if (minDist === Math.abs(distToTop)) { // Push out to the top
+                                y = -playerSize;
+                                vy = Math.min(vy, -Math.abs(vy) * 0.5); // Bounce effect
+                            } else { // Push out to the bottom
+                                y = gameAreaRect.height;
+                                vy = Math.max(vy, Math.abs(vy) * 0.5); // Bounce effect
                             }
                         }
 
