@@ -18,30 +18,37 @@
         const lossesCollection = room.collection('losses_v3');
 
         function Game() {
-            const gameAreaRef = useRef(null);
+            const gameWorldRef = useRef(null);
             const playerRef = useRef(null);
             
             const [playerState, setPlayerState] = useState({
-                x: -100, // Start off-screen
-                y: -100,
+                x: 0,
+                y: 0,
                 vx: 0,
                 vy: 0,
                 grounded: false
             });
-            const [camera, setCamera] = useState({ zoom: 1 });
+            const [camera, setCamera] = useState({ x: 0, y: 0 });
             const [initialized, setInitialized] = useState(false);
             const keysPressed = useRef({});
 
             useEffect(() => {
-                if (gameAreaRef.current && !initialized) {
-                    const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-                    setPlayerState({
-                        x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
-                        y: -50, // Start 50px above the game area, relative to it
-                        vx: 0,
-                        vy: 0,
-                        grounded: false
+                if (gameWorldRef.current && !initialized) {
+                    const gameWorldRect = gameWorldRef.current.getBoundingClientRect();
+                    const initialPlayerPos = {
+                        x: gameWorldRect.width / 2 - 15, // Center of world
+                        y: gameWorldRect.height / 2 - 200, // Above planet
+                    };
+                    setPlayerState(prev => ({ ...prev, ...initialPlayerPos }));
+
+                    // Initial camera position centered on player
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+                    setCamera({
+                        x: initialPlayerPos.x - viewportWidth / 2,
+                        y: initialPlayerPos.y - viewportHeight / 2
                     });
+
                     setInitialized(true);
                 }
             }, [initialized]);
@@ -61,24 +68,31 @@
                 if (!initialized) return;
 
                 let animationFrameId;
-                let lastCameraZoom = camera.zoom;
 
                 const gameLoop = () => {
-                    if (!gameAreaRef.current) return;
+                    if (!gameWorldRef.current) return;
 
-                    const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-                    const planetCenter = {
-                        x: gameAreaRect.width / 2, // relative to gameArea
-                        y: gameAreaRect.height / 2 // relative to gameArea
+                    const gameWorldRect = gameWorldRef.current.getBoundingClientRect();
+                    // Using fixed planet dimensions relative to the large game world
+                    const planetWidth = 400;
+                    const planetHeight = 100;
+                    const planetRect = {
+                        left: (gameWorldRect.width - planetWidth) / 2,
+                        top: (gameWorldRect.height - planetHeight) / 2,
+                        right: (gameWorldRect.width + planetWidth) / 2,
+                        bottom: (gameWorldRect.height + planetHeight) / 2,
                     };
+                    const planetCenter = {
+                        x: planetRect.left + planetWidth / 2,
+                        y: planetRect.top + planetHeight / 2,
+                    };
+
                     const playerSize = 30;
 
-                    let nextPlayerState;
                     setPlayerState(p => {
                         let { x, y, vx, vy } = p;
                         
-                        // Gravity
-                        const gravity = 0.3; // slightly reduced for better control
+                        const gravity = 0.3;
                         const dx = planetCenter.x - (x + playerSize / 2);
                         const dy = planetCenter.y - (y + playerSize / 2);
                         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -88,98 +102,67 @@
                             vy += (dy / dist) * gravity;
                         }
 
-                        // Update position first
                         x += vx;
                         y += vy;
                         
-                        // Drag
                         vx *= 0.98;
                         vy *= 0.98;
 
-                        // Collision detection with planet
                         let grounded = false;
-                        
-                        // Use offsetWidth/Height which are not affected by transforms, for stable physics
-                        const gameAreaWidth = gameAreaRef.current.offsetWidth;
-                        const gameAreaHeight = gameAreaRef.current.offsetHeight;
+                        const playerRect = { left: x, top: y, right: x + playerSize, bottom: y + playerSize };
 
-                        const playerRect = {
-                            left: x,
-                            right: x + playerSize,
-                            top: y,
-                            bottom: y + playerSize,
-                            centerX: x + playerSize / 2,
-                            centerY: y + playerSize / 2
-                        };
-                        
-                        // Collision logic assumes game area is at (0,0) of its own coordinate system
-                        const isColliding = playerRect.right > 0 &&
-                                          playerRect.left < gameAreaWidth &&
-                                          playerRect.bottom > 0 &&
-                                          playerRect.top < gameAreaHeight;
-                        
-                        if (isColliding) {
+                        const isCollidingWithPlanet = playerRect.right > planetRect.left &&
+                                          playerRect.left < planetRect.right &&
+                                          playerRect.bottom > planetRect.top &&
+                                          playerRect.top < planetRect.bottom;
+
+                        if (isCollidingWithPlanet) {
                              grounded = true;
-                            // Find shallowest penetration and push out
-                            const penLeft = playerRect.right;
-                            const penRight = gameAreaWidth - playerRect.left;
-                            const penTop = playerRect.bottom;
-                            const penBottom = gameAreaHeight - playerRect.top;
+                            const penLeft = playerRect.right - planetRect.left;
+                            const penRight = planetRect.right - playerRect.left;
+                            const penTop = playerRect.bottom - planetRect.top;
+                            const penBottom = planetRect.bottom - playerRect.top;
 
                             const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
-                            if (minPen === penTop) { // Pushing out from top of box
-                                y = -playerSize;
-                                vy = 0;
-                            } else if (minPen === penBottom) { // Pushing out from bottom of box
-                                y = gameAreaHeight;
-                                vy = 0;
-                            } else if (minPen === penLeft) { // Pushing out from left of box
-                                x = -playerSize;
-                                vx = 0;
-                            } else { // Pushing out from right of box
-                                x = gameAreaWidth;
-                                vx = 0;
+                            if (minPen === penTop) {
+                                y = planetRect.top - playerSize;
+                                vy *= -0.5; // Bounce
+                            } else if (minPen === penBottom) {
+                                y = planetRect.bottom;
+                                vy *= -0.5; // Bounce
+                            } else if (minPen === penLeft) {
+                                x = planetRect.left - playerSize;
+                                vx *= -0.5; // Bounce
+                            } else {
+                                x = planetRect.right;
+                                vx *= -0.5; // Bounce
                             }
                         }
 
-                        // Controls
-                        const moveForce = 0.8; // Reduced force for finer control
+                        const moveForce = 0.8;
                         if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW']) vy -= moveForce;
                         if (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS']) vy += moveForce;
                         if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
                         if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
 
-                        nextPlayerState = { x, y, vx, vy, grounded };
-                        return nextPlayerState;
+                        return { x, y, vx, vy, grounded };
                     });
                     
-                    // Camera logic
-                    if (gameAreaRef.current && nextPlayerState) {
-                        const gameAreaWidth = gameAreaRef.current.offsetWidth;
-                        const gameAreaHeight = gameAreaRef.current.offsetHeight;
+                    // Camera follow logic
+                    setCamera(prevCamera => {
+                        const viewportWidth = window.innerWidth;
+                        const viewportHeight = window.innerHeight;
+                        const targetX = playerState.x - viewportWidth / 2;
+                        const targetY = playerState.y - viewportHeight / 2;
                         
-                        const bounds = {
-                            minX: Math.min(0, nextPlayerState.x),
-                            maxX: Math.max(gameAreaWidth, nextPlayerState.x + playerSize),
-                            minY: Math.min(0, nextPlayerState.y),
-                            maxY: Math.max(gameAreaHeight, nextPlayerState.y + playerSize),
-                        };
+                        // Smooth lerp for camera
+                        const lerpFactor = 0.1;
+                        const newX = prevCamera.x + (targetX - prevCamera.x) * lerpFactor;
+                        const newY = prevCamera.y + (targetY - prevCamera.y) * lerpFactor;
 
-                        const boundsWidth = bounds.maxX - bounds.minX;
-                        const boundsHeight = bounds.maxY - bounds.minY;
-                        
-                        const padding = 1.2; // 20% padding
-                        const requiredZoomX = window.innerWidth / (boundsWidth * padding);
-                        const requiredZoomY = window.innerHeight / (boundsHeight * padding);
-                        
-                        let targetZoom = Math.min(requiredZoomX, requiredZoomY, 1.0);
-
-                        // Smooth zoom interpolation
-                        lastCameraZoom = lastCameraZoom + (targetZoom - lastCameraZoom) * 0.05;
-
-                        setCamera({ zoom: lastCameraZoom });
-                    }
+                        return { x: newX, y: newY };
+                    });
 
 
                     animationFrameId = requestAnimationFrame(gameLoop);
@@ -190,17 +173,23 @@
                 return () => {
                     cancelAnimationFrame(animationFrameId);
                 };
-            }, [initialized]);
+            }, [initialized, playerState.x, playerState.y]); // Re-run effect when player moves for camera update
 
             return (
-                <div className="camera-container" style={{ transform: `scale(${camera.zoom})`}}>
-                    <main ref={gameAreaRef}>
+                <main>
+                    <div
+                        ref={gameWorldRef}
+                        className="game-world"
+                        style={{ transform: `translate(${-camera.x}px, ${-camera.y}px)` }}
+                    >
+                        <div className="planet">
+                            <h1>You Just Lost The Game</h1>
+                        </div>
                         <div ref={playerRef} className="player" style={{
                             transform: `translate(${playerState.x}px, ${playerState.y}px)`
                         }}></div>
-                        <h1>You Just Lost The Game</h1>
-                    </main>
-                </div>
+                    </div>
+                </main>
             );
         }
 
