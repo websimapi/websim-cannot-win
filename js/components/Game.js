@@ -17,49 +17,17 @@ function Game() {
     const keysPressed = useRef({});
     const [healthOrbs, setHealthOrbs] = useState([]);
 
-    const collectOrbSound = useRef(null);
-    const audioContextRef = useRef(null);
+    const collectSound = useRef(null);
 
     useEffect(() => {
-        // Initialize Web Audio for sound effects
-        const initAudio = async () => {
-            if (audioContextRef.current) return;
-            try {
-                const context = new (window.AudioContext || window.webkitAudioContext)();
-                const response = await fetch('/collect_orb.mp3');
-                const arrayBuffer = await response.arrayBuffer();
-                const buffer = await context.decodeAudioData(arrayBuffer);
-                collectOrbSound.current = buffer;
-                audioContextRef.current = context;
-            } catch (error) {
-                console.error("Failed to initialize sound effect audio:", error);
+        // Pre-create the audio buffer for the collect sound to avoid re-creating it on every collection
+        const createCollectSound = async () => {
+            if (AudioManager.isInitialized()) {
+                collectSound.current = await AudioManager.createSoundBufferFromFrequency(440, 0.1, 'sine', 0.2);
             }
         };
-        initAudio();
+        createCollectSound();
     }, []);
-
-    const playSound = useCallback((buffer) => {
-        if (!buffer || !audioContextRef.current) return;
-        if (audioContextRef.current.state === 'suspended') {
-            audioContextRef.current.resume();
-        }
-        const source = audioContextRef.current.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioContextRef.current.destination);
-        source.start(0);
-    }, []);
-
-    useEffect(() => {
-        if (gameAreaRef.current && !initialized) {
-            const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-            setPlayerState(p => ({
-                ...p,
-                x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
-                y: -50, // Start 50px above the game area, relative to it
-            }));
-            setInitialized(true);
-        }
-    }, [initialized]);
 
     // Orb Spawning Timer
     useEffect(() => {
@@ -112,133 +80,31 @@ function Game() {
         };
     }, []);
 
-    useEffect(() => {
-        if (!initialized) return;
+    const gameLoop = useCallback(() => {
+        if (!gameAreaRef.current) return;
 
-        let animationFrameId;
+        const gameAreaWidth = gameAreaRef.current.offsetWidth;
+        const gameAreaHeight = gameAreaRef.current.offsetHeight;
+        
+        const planetCenter = {
+            x: gameAreaWidth / 2,
+            y: gameAreaHeight / 2
+        };
+        const playerSize = 30;
+        const orbSize = 20;
 
-        const gameLoop = () => {
-            if (!gameAreaRef.current) return;
+        let orbsCollectedCount = 0;
+        let newHealthOrbs = [...healthOrbs];
 
-            // Use offsetWidth and offsetHeight for consistent dimensions.
-            const gameAreaWidth = gameAreaRef.current.offsetWidth;
-            const gameAreaHeight = gameAreaRef.current.offsetHeight;
+        setPlayerState(p => {
+            let { x, y, vx, vy, health } = p;
             
-            const planetCenter = {
-                x: gameAreaWidth / 2, // relative to gameArea
-                y: gameAreaHeight / 2 // relative to gameArea
-            };
-            const playerSize = 30;
-            const orbSize = 20;
-
-            setPlayerState(p => {
-                let { x, y, vx, vy, health } = p;
-                
-                // Gravity
-                const gravity = 0.3; // slightly reduced for better control
-                const dx = planetCenter.x - (x + playerSize / 2);
-                const dy = planetCenter.y - (y + playerSize / 2);
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                if (dist > 0) {
-                    vx += (dx / dist) * gravity;
-                    vy += (dy / dist) * gravity;
-                }
-
-                // Update position first
-                x += vx;
-                y += vy;
-                
-                // Drag
-                vx *= 0.98;
-                vy *= 0.98;
-
-                // Calculate zoom based on distance from planet center
-                const playerDistX = x + playerSize / 2;
-                const playerDistY = y + playerSize / 2;
-
-                const distanceFromCenter = Math.sqrt(
-                    Math.pow(playerDistX - planetCenter.x, 2) + 
-                    Math.pow(playerDistY - planetCenter.y, 2)
-                );
-                
-                // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
-                const maxDistance = Math.max(gameAreaWidth, gameAreaHeight);
-                const normalizedDistance = Math.min(distanceFromCenter / maxDistance, 1);
-                const minScale = 0.4; // Don't zoom out too much
-                const maxScale = 1.2; // Allow slight zoom in when very close
-                const targetScale = maxScale - (normalizedDistance * (maxScale - minScale));
-                
-                // Smooth scale transition
-                setGameScale(prevScale => {
-                    const scaleDiff = targetScale - prevScale;
-                    return prevScale + scaleDiff * 0.1; // Smooth interpolation
-                });
-
-                // Collision detection with planet
-                let grounded = false;
-                const playerRect = {
-                    left: x,
-                    right: x + playerSize,
-                    top: y,
-                    bottom: y + playerSize
-                };
-
-                const planetRect = {
-                    left: 0,
-                    right: gameAreaWidth,
-                    top: 0,
-                    bottom: gameAreaHeight
-                };
-
-                const isColliding = playerRect.right > planetRect.left &&
-                                  playerRect.left < planetRect.right &&
-                                  playerRect.bottom > planetRect.top &&
-                                  playerRect.top < planetRect.bottom;
-
-                if (isColliding) {
-                    grounded = true;
-                   
-                    const penLeft = playerRect.right - planetRect.left;
-                    const penRight = planetRect.right - playerRect.left;
-                    const penTop = playerRect.bottom - planetRect.top;
-                    const penBottom = playerRect.bottom - playerRect.top;
-
-                    const minPen = Math.min(penLeft, penRight, penTop, penBottom);
-
-                    if (minPen === penTop) { // Colliding with top edge
-                        y = planetRect.top - playerSize;
-                        vy = 0;
-                    } else if (minPen === penBottom) { // Colliding with bottom edge
-                        y = planetRect.bottom;
-                        vy = 0;
-                    } else if (minPen === penLeft) { // Colliding with left edge
-                        x = planetRect.left - playerSize;
-                        vx = 0;
-                    } else { // Colliding with right edge
-                        x = planetRect.right;
-                        vx = 0;
-                    }
-                }
-
-                // Controls
-                const moveForce = 0.8; // Reduced force for finer control
-                if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW']) vy -= moveForce;
-                if (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS']) vy += moveForce;
-                if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
-                if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
-
-                return { x, y, vx, vy, grounded, health };
-            });
-
-            // Orb collection logic, runs outside of setPlayerState to avoid stale state
-            const playerCenterX = playerState.x + playerSize / 2;
-            const playerCenterY = playerState.y + playerSize / 2;
-
+            // --- Orb collection logic ---
+            const playerCenterX = x + playerSize / 2;
+            const playerCenterY = y + playerSize / 2;
+            
             const remainingOrbs = [];
-            let collectedCount = 0;
-            
-            for (const orb of healthOrbs) {
+            for(const orb of newHealthOrbs) {
                 const orbCenterX = orb.x + orbSize / 2;
                 const orbCenterY = orb.y + orbSize / 2;
 
@@ -248,31 +114,103 @@ function Game() {
                 const collisionDistance = (playerSize / 2) + (orbSize / 2);
 
                 if (distance < collisionDistance) {
-                    collectedCount++;
+                    orbsCollectedCount++;
                 } else {
                     remainingOrbs.push(orb);
                 }
             }
+
+            if(orbsCollectedCount > 0) {
+                newHealthOrbs = remainingOrbs;
+                health = Math.min(1, health + (0.1 * orbsCollectedCount));
+                if (collectSound.current) {
+                    AudioManager.playSoundBuffer(collectSound.current);
+                }
+            }
+            // --- End orb collection ---
+
+            // Gravity
+            const gravity = 0.3;
+            const gravDx = planetCenter.x - (x + playerSize / 2);
+            const gravDy = planetCenter.y - (y + playerSize / 2);
+            const dist = Math.sqrt(gravDx * gravDx + gravDy * gravDy);
             
-            if (collectedCount > 0) {
-                setPlayerState(p => ({
-                    ...p,
-                    health: Math.min(1, p.health + (0.1 * collectedCount))
-                }));
-                setHealthOrbs(remainingOrbs);
-                // Play sound for each collected orb, but just once per frame if multiple are hit
-                playSound(collectOrbSound.current);
+            if (dist > 0) {
+                vx += (gravDx / dist) * gravity;
+                vy += (gravDy / dist) * gravity;
             }
 
-            animationFrameId = requestAnimationFrame(gameLoop);
+            // Controls
+            const moveForce = 0.8;
+            if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW']) vy -= moveForce;
+            if (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS']) vy += moveForce;
+            if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
+            if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
+
+            // Drag
+            vx *= 0.98;
+            vy *= 0.98;
+            
+            // Update position
+            x += vx;
+            y += vy;
+            
+            // Collision detection with planet
+            let grounded = false;
+            // Simplified boundary check, assuming planet is the game area for now
+            if (x < 0) { x = 0; vx = 0; }
+            if (y < 0) { y = 0; vy = 0; }
+            if (x + playerSize > gameAreaWidth) { x = gameAreaWidth - playerSize; vx = 0; }
+            if (y + playerSize > gameAreaHeight) { y = gameAreaHeight - playerSize; vy = 0; grounded = true; } // simplistic grounded check
+
+            return { x, y, vx, vy, grounded, health };
+        });
+
+        if (orbsCollectedCount > 0) {
+            setHealthOrbs(newHealthOrbs);
+        }
+
+        // --- Scale calculation ---
+        setPlayerState(p => {
+            const playerDistX = p.x + playerSize / 2;
+            const playerDistY = p.y + playerSize / 2;
+
+            const distanceFromCenter = Math.sqrt(
+                Math.pow(playerDistX - planetCenter.x, 2) + 
+                Math.pow(playerDistY - planetCenter.y, 2)
+            );
+            
+            const maxDistance = Math.max(gameAreaWidth, gameAreaHeight);
+            const normalizedDistance = Math.min(distanceFromCenter / maxDistance, 1);
+            const minScale = 0.4;
+            const maxScale = 1.2;
+            const targetScale = maxScale - (normalizedDistance * (maxScale - minScale));
+            
+            setGameScale(prevScale => {
+                const scaleDiff = targetScale - prevScale;
+                return prevScale + scaleDiff * 0.1;
+            });
+            return p;
+        });
+
+    }, [healthOrbs, initialized]);
+
+    useEffect(() => {
+        if (!initialized) return;
+
+        let animationFrameId;
+
+        const runGameLoop = () => {
+            gameLoop();
+            animationFrameId = requestAnimationFrame(runGameLoop);
         };
 
-        gameLoop();
+        runGameLoop();
 
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [initialized, playerState, healthOrbs, playSound]);
+    }, [initialized, gameLoop]);
 
     return (
         <>
