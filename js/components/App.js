@@ -11,9 +11,16 @@ function App() {
         let animationFrameId;
         const root = document.documentElement;
 
-        // State for continuous animation
-        let gradientX = 0;
+        // --- State for smoothed animation ---
         let lastTime = performance.now();
+        // Text gradient properties
+        let currentGradientSize = 200;
+        let currentGradientX = 0;
+        let currentHue1 = 0, currentHue2 = 120, currentHue3 = 240;
+        // Text fire effect properties
+        let currentFireIntensity = 0;
+        // Container background properties
+        let currentBgPulse = 0;
 
         const visualize = () => {
             const now = performance.now();
@@ -25,46 +32,52 @@ function App() {
                 // Slice frequency data for different ranges
                 const bassFrequencies = frequencyData.slice(0, 5); // ~0-215Hz
                 const midFrequencies = frequencyData.slice(15, 30); // ~645-1290Hz
+                const highMidFrequencies = frequencyData.slice(30, 50); // ~1290-2150Hz
                 const trebleFrequencies = frequencyData.slice(50, 100); // ~2150-4300Hz
 
                 const averageBass = bassFrequencies.reduce((s, v) => s + v, 0) / bassFrequencies.length;
                 const averageMid = midFrequencies.reduce((s, v) => s + v, 0) / midFrequencies.length;
+                const averageHighMid = highMidFrequencies.reduce((s, v) => s + v, 0) / highMidFrequencies.length;
                 const averageTreble = trebleFrequencies.reduce((s, v) => s + v, 0) / trebleFrequencies.length;
 
-                // --- TEXT VISUALIZER ---
-                // Pulse background size with bass for text gradient
+                // --- Smoothing factor ---
+                const smoothing = 0.1;
+
+                // --- Text Gradient Visualization ---
                 const bassPulse = (averageBass / 255);
-                const gradientSize = 200 + bassPulse * 200; // Pulse between 200% and 400%
-                root.style.setProperty('--gradient-size', `${gradientSize}%`);
+                const targetGradientSize = 200 + bassPulse * 200;
+                currentGradientSize += (targetGradientSize - currentGradientSize) * smoothing;
+                root.style.setProperty('--gradient-size', `${currentGradientSize}%`);
 
-                // Move background position for text gradient
                 const speed = 0.03;
-                gradientX += speed * deltaTime;
-                root.style.setProperty('--gradient-pos-x', `${gradientX}px`);
+                currentGradientX += speed * deltaTime;
+                root.style.setProperty('--gradient-pos-x', `${currentGradientX}px`);
 
-                // Cycle through hues for 3 gradient colors for text
-                const hue1 = (now / 40) % 360; // Base color cycles slowly
-                const hue2 = (hue1 + 120 + (averageMid / 255) * 60) % 360; // Mids affect the second color
-                const hue3 = (hue2 + 120 + (averageTreble / 255) * 60) % 360; // Trebles affect the third color
+                const targetHue1 = (now / 50) % 360;
+                const targetHue2 = (targetHue1 + 120 + (averageMid / 255) * 60) % 360;
+                const targetHue3 = (targetHue2 + 120 + (averageTreble / 255) * 60) % 360;
 
-                root.style.setProperty('--gradient-color-1', `hsl(${hue1}, 100%, 55%)`);
-                root.style.setProperty('--gradient-color-2', `hsl(${hue2}, 100%, 55%)`);
-                root.style.setProperty('--gradient-color-3', `hsl(${hue3}, 100%, 55%)`);
+                currentHue1 = targetHue1; // Base hue cycles steadily
+                currentHue2 += (targetHue2 - currentHue2) * smoothing;
+                currentHue3 += (targetHue3 - currentHue3) * smoothing;
 
-                // --- BACKGROUND VISUALIZER ---
-                const bassPulseBg = averageBass / 255;
-                const midPulseBg = averageMid / 255;
+                root.style.setProperty('--gradient-color-1', `hsl(${currentHue1}, 100%, 55%)`);
+                root.style.setProperty('--gradient-color-2', `hsl(${currentHue2}, 100%, 55%)`);
+                root.style.setProperty('--gradient-color-3', `hsl(${currentHue3}, 100%, 55%)`);
 
-                // Pulsate background size with bass
-                const bgSize = 150 + bassPulseBg * 150;
-                root.style.setProperty('--bg-visualizer-size', `${bgSize}%`);
-                
-                // Set background colors based on hues and mid-range frequencies
-                const bgColor1 = `hsl(${hue1}, 80%, ${10 + bassPulseBg * 10}%)`;
-                const bgColor2 = `hsl(${hue2}, 90%, ${15 + midPulseBg * 15}%)`;
+                // --- Text Fire Effect ---
+                const targetFireIntensity = Math.min(averageHighMid / 180, 1.0); // Normalize high-mids for intensity
+                currentFireIntensity += (targetFireIntensity - currentFireIntensity) * smoothing * 0.8;
+                root.style.setProperty('--fire-intensity', currentFireIntensity);
+                root.style.setProperty('--fire-time', `${now / 1000}s`);
 
-                root.style.setProperty('--bg-visualizer-color-1', bgColor1);
-                root.style.setProperty('--bg-visualizer-color-2', bgColor2);
+                // --- Container Background Pulse ---
+                const targetBgPulse = bassPulse;
+                currentBgPulse += (targetBgPulse - currentBgPulse) * smoothing;
+                const bgPulseSize = 100 + currentBgPulse * 40; // Pulse from 100% to 140%
+                const bgPulseOpacity = currentBgPulse * 0.15; // Pulse opacity up to 0.15
+                root.style.setProperty('--container-pulse-size', `${bgPulseSize}%`);
+                root.style.setProperty('--container-pulse-opacity', bgPulseOpacity);
             }
             animationFrameId = requestAnimationFrame(visualize);
         };
@@ -79,10 +92,10 @@ function App() {
             root.style.removeProperty('--gradient-color-1');
             root.style.removeProperty('--gradient-color-2');
             root.style.removeProperty('--gradient-color-3');
-            // Reset background variables
-            root.style.removeProperty('--bg-visualizer-size');
-            root.style.removeProperty('--bg-visualizer-color-1');
-            root.style.removeProperty('--bg-visualizer-color-2');
+            root.style.removeProperty('--fire-intensity');
+            root.style.removeProperty('--fire-time');
+            root.style.removeProperty('--container-pulse-size');
+            root.style.removeProperty('--container-pulse-opacity');
         };
     }, [showDisclaimer]);
 

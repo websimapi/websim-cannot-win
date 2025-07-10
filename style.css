@@ -11,16 +11,6 @@ body {
     overflow: hidden;
     position: relative;
     z-index: 1;
-
-    /* Background Visualizer styles */
-    background: radial-gradient(
-        circle at center,
-        var(--bg-visualizer-color-1, #1a1a1a),
-        var(--bg-visualizer-color-2, #0d0d0d) 80%
-    );
-    background-size: var(--bg-visualizer-size, 150%) var(--bg-visualizer-size, 150%);
-    animation: bg-pan 40s linear infinite;
-    transition: background-size 0.1s ease-out;
 }
 
 #root {
@@ -30,7 +20,6 @@ body {
     justify-content: center;
     align-items: center;
     position: relative;
-    animation: scroll 60s linear infinite;
 }
 
 body::before {
@@ -58,12 +47,6 @@ body::before {
     }
 }
 
-@keyframes bg-pan {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
 :root {
     /* Gradiant properties for text visualization */
     --gradient-color-1: #d90429;
@@ -71,11 +54,34 @@ body::before {
     --gradient-color-3: #00a8e8;
     --gradient-pos-x: 0px;
     --gradient-size: 200%;
+
+    /* Fire effect properties for text */
+    --fire-intensity: 0;
+    --fire-time: 0s;
     
-    /* Background visualizer properties */
-    --bg-visualizer-color-1: #1a1a1a;
-    --bg-visualizer-color-2: #0d0d0d;
-    --bg-visualizer-size: 150%;
+    /* Background pulse properties for containers */
+    --container-pulse-size: 100%;
+    --container-pulse-opacity: 0;
+}
+
+main, .counter-box {
+    position: relative; /* Needed for pseudo-element positioning */
+    z-index: 1; /* Ensure content is above the pseudo-element */
+    overflow: hidden; /* Keep pulse effect contained */
+}
+
+main::before, .counter-box::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--container-pulse-size);
+    height: var(--container-pulse-size);
+    background-image: radial-gradient(circle, hsl(25, 100%, 60%), transparent 70%);
+    transform: translate(-50%, -50%);
+    opacity: var(--container-pulse-opacity);
+    z-index: -1; /* Place it behind the content */
+    transition: width 0.1s ease-out, height 0.1s ease-out, opacity 0.1s ease-out;
 }
 
 main {
@@ -95,6 +101,7 @@ h1 {
     font-size: clamp(2rem, 5vw, 4rem);
     margin: 0;
     font-weight: 700;
+    position: relative; /* For pseudo-element */
     /* Inherit the visualizer effect */
 }
 
@@ -240,6 +247,7 @@ h1 {
 }
 
 .visualizer-text {
+    position: relative; /* Required for the fire pseudo-element */
     background-image: linear-gradient(
         90deg,
         var(--gradient-color-1),
@@ -255,4 +263,29 @@ h1 {
     /* Add a subtle stroke to maintain readability */
     -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
     transition: background-position-x 0.05s linear;
+}
+
+/* Fire effect using text-shadows, controlled by --fire-intensity */
+.visualizer-text {
+    text-shadow:
+        /* Static base glow */
+        0 0 calc(var(--fire-intensity) * 10px) hsla(50, 100%, 70%, calc(var(--fire-intensity) * 0.5)),
+        
+        /* Flickering flame layers */
+        calc(sin(var(--fire-time) * 35 + 1) * 0.5px) /* x-flicker */
+        calc(var(--fire-intensity) * -10px - cos(var(--fire-time) * 15) * 5px)  /* y-position */
+        calc(var(--fire-intensity) * 15px + 5px)  /* blur */
+        hsla(45, 100%, 65%, calc(var(--fire-intensity) * 0.7)), /* color */
+
+        calc(cos(var(--fire-time) * 25 + 2) * 1px)
+        calc(var(--fire-intensity) * -20px - sin(var(--fire-time) * 20) * 8px)
+        calc(var(--fire-intensity) * 25px + 10px)
+        hsla(30, 100%, 60%, calc(var(--fire-intensity) * 0.5)),
+
+        calc(sin(var(--fire-time) * 15 + 3) * 1.5px)
+        calc(var(--fire-intensity) * -40px - cos(var(--fire-time) * 25) * 10px)
+        calc(var(--fire-intensity) * 35px + 20px)
+        hsla(10, 100%, 55%, calc(var(--fire-intensity) * 0.3));
+    
+    transition: text-shadow 0.1s ease-out;
 }
