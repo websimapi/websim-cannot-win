@@ -11,9 +11,23 @@
 </head>
 <body>
     <div id="root"></div>
+    <script type="text/babel">
+        // removed const { useState, useEffect, useSyncExternalStore, useMemo, useRef, useCallback } = React;
+        // removed const room = new WebsimSocket();
+        // removed const lossesCollection = room.collection('losses_v3');
+        // removed const AudioManager = (() => { ... })();
+        // removed function Game() { ... }
+        // removed function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) { ... }
+        // removed function FadeInOverlay() { ... }
+        // removed function App() { ... }
+        // removed const container = document.getElementById('root');
+        // removed const root = ReactDOM.createRoot(container);
+        // removed root.render(<App />);
+    </script>
     <script type="text/babel" src="js/AudioManager.js"></script>
     <script type="text/babel" src="js/components/FadeInOverlay.js"></script>
     <script type="text/babel" src="js/components/DisclaimerOverlay.js"></script>
+    <script type="text/babel" src="js/components/VirtualJoystick.js"></script>
     <script type="text/babel" src="js/components/Game.js"></script>
     <script type="text/babel" src="js/components/App.js"></script>
     <script type="text/babel" src="js/main.js"></script>

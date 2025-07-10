@@ -22,7 +22,7 @@ const Orb = ({ orb }) => {
     );
 };
 
-function Game({ characterShape }) {
+function Game() {
     const gameAreaRef = useRef(null);
     const playerRef = useRef(null);
     
@@ -39,6 +39,14 @@ function Game({ characterShape }) {
     const [gameScale, setGameScale] = useState(1);
     const [initialized, setInitialized] = useState(false);
     const keysPressed = useRef({});
+    const joystickInput = useRef({ x: 0, y: 0 });
+
+    const isTouchDevice = 'ontouchstart' in window;
+
+    // Joystick handler
+    const handleJoystickMove = useCallback((vec) => {
+        joystickInput.current = vec;
+    }, []);
 
     useEffect(() => {
         if (gameAreaRef.current && !initialized) {
@@ -253,6 +261,14 @@ function Game({ characterShape }) {
                 if (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS']) vy += moveForce;
                 if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
                 if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
+                
+                // Joystick controls
+                if (joystickInput.current.y !== 0) {
+                    vy += joystickInput.current.y * moveForce;
+                }
+                if (joystickInput.current.x !== 0) {
+                    vx += joystickInput.current.x * moveForce;
+                }
 
                 return { x, y, vx, vy, grounded };
             });
@@ -265,22 +281,25 @@ function Game({ characterShape }) {
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [initialized]);
+    }, [initialized, handleJoystickMove]);
 
     return (
-        <main ref={gameAreaRef} style={{
-            transform: `scale(${gameScale})`,
-            transformOrigin: 'center',
-            transition: 'transform 0.1s ease-out'
-        }}>
-            {orbs.map(orb => <Orb key={orb.id} orb={orb} />)}
-            <div ref={playerRef} className={`player ${characterShape}`} style={{
-                transform: `translate(${playerState.x}px, ${playerState.y}px)`
-            }}></div>
-            <div className="game-ui">
-                <HealthBar health={health} />
-                <h1>You Just Lost The Game</h1>
-            </div>
-        </main>
+        <>
+            <main ref={gameAreaRef} style={{
+                transform: `scale(${gameScale})`,
+                transformOrigin: 'center',
+                transition: 'transform 0.1s ease-out'
+            }}>
+                {orbs.map(orb => <Orb key={orb.id} orb={orb} />)}
+                <div ref={playerRef} className="player" style={{
+                    transform: `translate(${playerState.x}px, ${playerState.y}px)`
+                }}></div>
+                <div className="game-ui">
+                    <HealthBar health={health} />
+                    <h1>You Just Lost The Game</h1>
+                </div>
+            </main>
+            {isTouchDevice && <VirtualJoystick onMove={handleJoystickMove} />}
+        </>
     );
 }
