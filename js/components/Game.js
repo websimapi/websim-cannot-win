@@ -73,10 +73,21 @@ function Game() {
             const spawnCenterX = gameAreaWidth / 2;
             const spawnCenterY = gameAreaHeight / 2;
 
+            let newOrbX, newOrbY;
+            
+            // This loop ensures orbs don't spawn inside the central game area.
+            do {
+                newOrbX = Math.random() * spawnRadiusX - (spawnRadiusX / 2) + spawnCenterX;
+                newOrbY = Math.random() * spawnRadiusY - (spawnRadiusY / 2) + spawnCenterY;
+            } while (
+                newOrbX >= 0 && newOrbX <= gameAreaWidth &&
+                newOrbY >= 0 && newOrbY <= gameAreaHeight
+            );
+
             const newOrb = {
                 id: Date.now() + Math.random(),
-                x: Math.random() * spawnRadiusX - (spawnRadiusX / 2) + spawnCenterX,
-                y: Math.random() * spawnRadiusY - (spawnRadiusY / 2) + spawnCenterY,
+                x: newOrbX,
+                y: newOrbY,
             };
             setOrbs(prevOrbs => [...prevOrbs, newOrb]);
         }, 3000);
