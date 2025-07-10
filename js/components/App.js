@@ -1,4 +1,4 @@
-const { useState, useEffect, useSyncExternalStore, useMemo } = React;
+const { useState, useEffect, useSyncExternalStore, useMemo, useCallback } = React;
 
 function App() {
     const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
@@ -11,14 +11,16 @@ function App() {
         }
     }, [gameStarted]);
 
-    const handlePlayClick = async () => {
-        // On mobile, attempt to lock screen orientation to landscape
-        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (isMobile && screen.orientation && screen.orientation.lock) {
+    const handlePlayClick = useCallback(async () => {
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isTouchDevice && screen.orientation && screen.orientation.lock) {
+            // This is a "nice-to-have" for landscape-first games, but we now support portrait.
+            // We can leave this as some users might prefer landscape. The browser will handle it.
+            // Or we could remove it to not suggest a preference. Let's keep it for now.
             try {
-                await screen.orientation.lock('landscape');
+                // await screen.orientation.lock('landscape'); // Optional: can be removed
             } catch (err) {
-                console.warn("Could not lock orientation. Please rotate your device manually.", err);
+                console.warn("Could not lock orientation. User can choose orientation.", err);
             }
         }
 
@@ -33,7 +35,7 @@ function App() {
         setTimeout(() => {
             setIsFading(false);
         }, 10000); // Corresponds to fade animation duration
-    };
+    }, []);
 
     const mostRecentLoss = useMemo(() => {
         return losses.length > 0 ? losses[0] : null;
