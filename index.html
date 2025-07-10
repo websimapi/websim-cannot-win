@@ -5,31 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>You Just Lost The Game</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js",
+        "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom-client.development.js"
+      }
+    }
+    </script>
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel">
-        // removed const { useState, useEffect, useSyncExternalStore, useMemo, useRef, useCallback } = React;
-        // removed const room = new WebsimSocket();
-        // removed const lossesCollection = room.collection('losses_v3');
-        // removed const AudioManager = (() => { ... })();
-        // removed function Game() { ... }
-        // removed function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) { ... }
-        // removed function FadeInOverlay() { ... }
-        // removed function App() { ... }
-        // removed const container = document.getElementById('root');
-        // removed const root = ReactDOM.createRoot(container);
-        // removed root.render(<App />);
-    </script>
-    <script type="text/babel" src="js/AudioManager.js"></script>
-    <script type="text/babel" src="js/components/FadeInOverlay.js"></script>
-    <script type="text/babel" src="js/components/DisclaimerOverlay.js"></script>
-    <script type="text/babel" src="js/components/Game.js"></script>
-    <script type="text/babel" src="js/components/App.js"></script>
-    <script type="text/babel" src="js/main.js"></script>
+    <script type="module" src="js/main.js"></script>
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>

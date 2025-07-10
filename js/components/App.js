@@ -1,7 +1,13 @@
+import React from 'react';
+import Game from './Game.js';
+import DisclaimerOverlay from './DisclaimerOverlay.js';
+import FadeInOverlay from './FadeInOverlay.js';
+import AudioManager from '../AudioManager.js';
+
 const { useState, useEffect, useSyncExternalStore, useMemo } = React;
 
 function App() {
-    const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
+    const losses = useSyncExternalStore(window.lossesCollection.subscribe, window.lossesCollection.getList) || [];
     const [showDisclaimer, setShowDisclaimer] = useState(true);
     const [isFading, setIsFading] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
@@ -106,3 +112,5 @@ function App() {
         </>
     );
 }
+
+export default App;

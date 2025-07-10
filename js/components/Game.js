@@ -1,3 +1,4 @@
+import React from 'react';
 const { useState, useEffect, useRef } = React;
 
 function Game({ maxHealth }) {
@@ -24,16 +25,20 @@ function Game({ maxHealth }) {
     useEffect(() => {
         if (gameAreaRef.current && !initialized) {
             const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
+            // We set the player position relative to the viewport center, which is the transform origin.
+            const playerX = window.innerWidth / 2 - 15;
+            const playerY = window.innerHeight / 2 - 15;
+            
             setPlayerState({
-                x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
-                y: -50, // Start 50px above the game area, relative to it
+                x: playerX, 
+                y: playerY, 
                 vx: 0,
                 vy: 0,
                 grounded: false
             });
             setInitialized(true);
         }
-    }, [initialized]);
+    }, [initialized, gameAreaRef.current]);
     
     useEffect(() => {
         if (!initialized) return;
@@ -50,7 +55,15 @@ function Game({ maxHealth }) {
                 }
                 const screenWidth = window.innerWidth;
                 const screenHeight = window.innerHeight;
-                const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
+                
+                // We must use unscaled rect for spawning logic
+                const mainEl = gameAreaRef.current;
+                const rect = {
+                    width: mainEl.offsetWidth,
+                    height: mainEl.offsetHeight,
+                    left: mainEl.offsetLeft,
+                    top: mainEl.offsetTop
+                };
 
                 let x, y;
                 let isInsideGameArea = true;
@@ -59,12 +72,12 @@ function Game({ maxHealth }) {
                 while (isInsideGameArea) {
                     x = Math.random() * screenWidth;
                     y = Math.random() * screenHeight;
-
+                    
                     isInsideGameArea = (
-                        x >= gameAreaRect.left &&
-                        x <= gameAreaRect.right &&
-                        y >= gameAreaRect.top &&
-                        y <= gameAreaRect.bottom
+                        x >= rect.left &&
+                        x <= rect.right &&
+                        y >= rect.top &&
+                        y <= rect.bottom
                     );
                 }
 
@@ -108,16 +121,55 @@ function Game({ maxHealth }) {
 
             // Health depletion over time
             setHealth(h => Math.max(0, h - (deltaTime * 0.5))); // Health decreases over time
+            
+            // Orb movement and collision with player
+            const playerSize = 30; // aabb
+            const orbSize = 15;
+
+            const playerRect = {
+                left: playerState.x,
+                right: playerState.x + playerSize,
+                top: playerState.y,
+                bottom: playerState.y + playerSize
+            };
+
+            setOrbs(currentOrbs => {
+                const updatedOrbs = currentOrbs.map(orb => ({
+                    ...orb,
+                    x: orb.x + orb.vx,
+                    y: orb.y + orb.vy,
+                })).filter(orb => {
+                    const orbRect = {
+                        left: orb.x,
+                        right: orb.x + orbSize,
+                        top: orb.y,
+                        bottom: orb.y + orbSize
+                    };
+
+                    const collides = playerRect.right > orbRect.left &&
+                                     playerRect.left < orbRect.right &&
+                                     playerRect.bottom > orbRect.top &&
+                                     playerRect.top < orbRect.bottom;
+                    
+                    if (collides) {
+                        setHealth(h => Math.min(maxHealth, h + 0.1));
+                        return false; // Remove orb on collision
+                    }
+                    return true;
+                });
+                return updatedOrbs;
+            });
 
             // Use offsetWidth and offsetHeight for consistent dimensions.
             const gameAreaWidth = gameAreaRef.current.offsetWidth;
             const gameAreaHeight = gameAreaRef.current.offsetHeight;
+            const gameAreaX = gameAreaRef.current.offsetLeft;
+            const gameAreaY = gameAreaRef.current.offsetTop;
             
             const planetCenter = {
-                x: gameAreaWidth / 2, // relative to gameArea
-                y: gameAreaHeight / 2 // relative to gameArea
+                x: gameAreaX + gameAreaWidth / 2, // relative to viewport
+                y: gameAreaY + gameAreaHeight / 2 // relative to viewport
             };
-            const playerSize = 30;
 
             setPlayerState(p => {
                 let { x, y, vx, vy } = p;
@@ -145,12 +197,12 @@ function Game({ maxHealth }) {
                 const playerCenterX = x + playerSize / 2;
                 const playerCenterY = y + playerSize / 2;
                 const distanceFromCenter = Math.sqrt(
-                    Math.pow(playerCenterX - planetCenter.x, 2) + 
-                    Math.pow(playerCenterY - planetCenter.y, 2)
+                    Math.pow(playerCenterX - window.innerWidth / 2, 2) + 
+                    Math.pow(playerCenterY - window.innerHeight / 2, 2)
                 );
                 
                 // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
-                const maxDistance = Math.max(gameAreaWidth, gameAreaHeight);
+                const maxDistance = Math.max(window.innerWidth, window.innerHeight) / 2;
                 const normalizedDistance = Math.min(distanceFromCenter / maxDistance, 1);
                 const minScale = 0.4; // Don't zoom out too much
                 const maxScale = 1.2; // Allow slight zoom in when very close
@@ -164,7 +216,7 @@ function Game({ maxHealth }) {
 
                 // Collision detection with planet
                 let grounded = false;
-                const playerRect = {
+                const currentPlayerRect = {
                     left: x,
                     right: x + playerSize,
                     top: y,
@@ -172,24 +224,24 @@ function Game({ maxHealth }) {
                 };
 
                 const planetRect = {
-                    left: 0,
-                    right: gameAreaWidth,
-                    top: 0,
-                    bottom: gameAreaHeight
+                    left: gameAreaX,
+                    right: gameAreaX + gameAreaWidth,
+                    top: gameAreaY,
+                    bottom: gameAreaY + gameAreaHeight
                 };
 
-                const isColliding = playerRect.right > planetRect.left &&
-                                  playerRect.left < planetRect.right &&
-                                  playerRect.bottom > planetRect.top &&
-                                  playerRect.top < planetRect.bottom;
+                const isColliding = currentPlayerRect.right > planetRect.left &&
+                                  currentPlayerRect.left < planetRect.right &&
+                                  currentPlayerRect.bottom > planetRect.top &&
+                                  currentPlayerRect.top < planetRect.bottom;
 
                 if (isColliding) {
                     grounded = true;
                    
-                    const penLeft = playerRect.right - planetRect.left;
-                    const penRight = planetRect.right - playerRect.left;
-                    const penTop = playerRect.bottom - planetRect.top;
-                    const penBottom = planetRect.bottom - playerRect.top;
+                    const penLeft = currentPlayerRect.right - planetRect.left;
+                    const penRight = planetRect.right - currentPlayerRect.left;
+                    const penTop = currentPlayerRect.bottom - planetRect.top;
+                    const penBottom = planetRect.bottom - currentPlayerRect.top;
 
                     const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
@@ -229,28 +281,29 @@ function Game({ maxHealth }) {
     }, [initialized, maxHealth]);
 
     return (
-        <>
-            <main ref={gameAreaRef} style={{
-                transform: `scale(${gameScale})`,
-                transformOrigin: 'center',
-                transition: 'transform 0.1s ease-out'
-            }}>
+        <div className="game-container" style={{
+            transform: `scale(${gameScale})`,
+            transformOrigin: 'center center',
+            transition: 'transform 0.1s ease-out'
+        }}>
+            <main ref={gameAreaRef} >
                 <div className="health-bar-container">
                     <div className="health-bar" style={{ width: `${(health / maxHealth) * 100}%` }}></div>
                 </div>
-                <div ref={playerRef} className="player" style={{
-                    transform: `translate(${playerState.x}px, ${playerState.y}px)`
-                }}></div>
                 <h1>You Just Lost The Game</h1>
             </main>
+            <div ref={playerRef} className="player" style={{
+                position: 'absolute',
+                transform: `translate(${playerState.x}px, ${playerState.y}px)`
+            }}></div>
             {orbs.map(orb => (
                 <div key={orb.id} className="orb" style={{
-                    position: 'fixed',
-                    left: 0,
-                    top: 0,
+                    position: 'absolute',
                     transform: `translate(${orb.x}px, ${orb.y}px)`
                 }}></div>
             ))}
-        </>
+        </div>
     );
 }
+
+export default Game;

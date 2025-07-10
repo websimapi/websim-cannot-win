@@ -47,6 +47,15 @@ body::before {
     }
 }
 
+.game-container {
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    will-change: transform;
+}
+
 main {
     position: relative;
     padding: 2rem 4rem;

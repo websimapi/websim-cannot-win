@@ -1,6 +1,11 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './components/App.js';
+
 // --- Global State ---
-const room = new WebsimSocket();
-const lossesCollection = room.collection('losses_v3');
+window.websim = new WebsimSocket();
+const lossesCollection = window.websim.collection('losses_v3');
+window.lossesCollection = lossesCollection;
 
 // --- App Entry Point ---
 const container = document.getElementById('root');
