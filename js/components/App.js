@@ -1,9 +1,15 @@
-const { useState, useEffect, useSyncExternalStore, useMemo } = React;
+const { useState, useEffect, useSyncExternalStore, useMemo, useRef } = React;
 
 function App() {
     const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
     const [gameStarted, setGameStarted] = useState(false);
     const [isFading, setIsFading] = useState(false);
+    const cornerRefs = {
+        topLeft: useRef(null),
+        topRight: useRef(null),
+        bottomLeft: useRef(null),
+        bottomRight: useRef(null),
+    };
 
     useEffect(() => {
         if (gameStarted) {
@@ -18,6 +24,7 @@ function App() {
         
         // Initialize and play audio on user interaction
         await AudioManager.init();
+        await AudioManager.loadSound('npc-explosion', '/npc_explosion.mp3');
         AudioManager.play();
 
         setTimeout(() => {
@@ -68,31 +75,31 @@ function App() {
     return (
         <>
             {isFading && <FadeInOverlay />}
-            <div className="corner top-left">
+            <div className="corner top-left" ref={cornerRefs.topLeft}>
                 <div className="counter-box">
                     <span>Most Recent Loser</span>
                     <div id="most-recent-loser" className="counter-value">{mostRecentLoser}</div>
                 </div>
             </div>
-            <div className="corner top-right">
+            <div className="corner top-right" ref={cornerRefs.topRight}>
                 <div className="counter-box">
                     <span>Lost Today</span>
                     <div id="today-counter" className="counter-value">{todayCount}</div>
                 </div>
             </div>
-            <div className="corner bottom-left">
+            <div className="corner bottom-left" ref={cornerRefs.bottomLeft}>
                 <div className="counter-box">
                     <span>All Time Losses</span>
                     <div id="all-time-counter" className="counter-value">{allTimeCount}</div>
                 </div>
             </div>
-            <div className="corner bottom-right">
+            <div className="corner bottom-right" ref={cornerRefs.bottomRight}>
                  <div className="counter-box">
                     <span>Lost This Week</span>
                     <div id="week-counter" className="counter-value">{weekCount}</div>
                 </div>
             </div>
-            <Game />
+            <Game cornerRefs={cornerRefs} />
         </>
     );
 }

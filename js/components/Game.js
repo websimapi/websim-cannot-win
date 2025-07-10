@@ -22,7 +22,31 @@ const Orb = ({ orb }) => {
     );
 };
 
-function Game() {
+const BlueOrb = ({ orb }) => {
+    return (
+        <div
+            className="blue-orb"
+            style={{
+                backgroundImage: 'url(/blue_orb.png)',
+                backgroundSize: 'contain',
+                transform: `translate(${orb.x}px, ${orb.y}px)`,
+            }}
+        ></div>
+    );
+};
+
+const Npc = ({ npc }) => {
+    const healthPercentage = (npc.health / 1.0) * 100;
+    return (
+        <div className="npc" style={{ transform: `translate(${npc.x}px, ${npc.y}px)` }}>
+            <div className="npc-health-bar-container">
+                <div className="npc-health-bar" style={{ width: `${healthPercentage}%` }}></div>
+            </div>
+        </div>
+    );
+};
+
+function Game({ cornerRefs }) {
     const gameAreaRef = useRef(null);
     const playerRef = useRef(null);
     
@@ -35,6 +59,8 @@ function Game() {
     });
     const [health, setHealth] = useState(10.0);
     const [orbs, setOrbs] = useState([]);
+    const [blueOrbs, setBlueOrbs] = useState([]);
+    const [npcs, setNpcs] = useState([]);
 
     const [gameScale, setGameScale] = useState(1);
     const [initialized, setInitialized] = useState(false);
@@ -51,6 +77,54 @@ function Game() {
             setInitialized(true);
         }
     }, [initialized]);
+
+    // Game Phase Timers
+    useEffect(() => {
+        if (!initialized) return;
+
+        // --- Phase 1: 95 seconds ---
+        const phase1Duration = 95000;
+        let phase1Active = true;
+
+        // NPC Spawner
+        const npcSpawnInterval = setInterval(() => {
+            if (!phase1Active || !gameAreaRef.current) return;
+            
+            const gameRect = gameAreaRef.current.getBoundingClientRect();
+            if (!gameRect.width) return;
+
+            const cornerRefArray = Object.values(cornerRefs);
+            const randomCornerRef = cornerRefArray[Math.floor(Math.random() * cornerRefArray.length)].current;
+            if (!randomCornerRef) return;
+            
+            const cornerRect = randomCornerRef.getBoundingClientRect();
+
+            // Translate corner's viewport coordinates to game world coordinates
+            const spawnX = (cornerRect.left - gameRect.left + cornerRect.width / 2) / gameScale;
+            const spawnY = (cornerRect.top - gameRect.top + cornerRect.height / 2) / gameScale;
+           
+            const newNpc = {
+                id: Date.now() + Math.random(),
+                x: spawnX,
+                y: spawnY,
+                vx: 0,
+                vy: 0,
+                health: 1.0,
+                createdAt: Date.now(),
+            };
+            setNpcs(prev => [...prev, newNpc]);
+        }, 5000);
+
+        const phase1Timeout = setTimeout(() => {
+            phase1Active = false;
+        }, phase1Duration);
+
+
+        return () => {
+            clearInterval(npcSpawnInterval);
+            clearTimeout(phase1Timeout);
+        };
+    }, [initialized, gameScale, cornerRefs]);
 
     // Health decay and orb spawning timers
     useEffect(() => {
@@ -127,6 +201,73 @@ function Game() {
             };
             const playerSize = 30;
 
+            const now = Date.now();
+
+            // --- NPC LOGIC ---
+            setNpcs(currentNpcs => {
+                const updatedNpcs = [];
+                const newlyDeadNpcs = [];
+
+                for (const npc of currentNpcs) {
+                    let { x, y, vx, vy, health } = npc;
+                    
+                    // Health decay
+                    if (now - npc.createdAt > 3000) {
+                        health -= 0.1;
+                    }
+                    
+                    if (health <= 0) {
+                        newlyDeadNpcs.push(npc);
+                        continue;
+                    }
+
+                    // Simple AI: Move towards player
+                    const force = 0.1;
+                    const pCenterX = playerState.x + playerSize / 2;
+                    const pCenterY = playerState.y + playerSize / 2;
+                    const dxToPlayer = pCenterX - x;
+                    const dyToPlayer = pCenterY - y;
+                    const distToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
+                    if (distToPlayer > 0) {
+                        vx += (dxToPlayer / distToPlayer) * force;
+                        vy += (dyToPlayer / distToPlayer) * force;
+                    }
+                    
+                    // Gravity
+                    const gravity = 0.3;
+                    const dx = planetCenter.x - (x + 12.5);
+                    const dy = planetCenter.y - (y + 12.5);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 0) {
+                        vx += (dx / dist) * gravity;
+                        vy += (dy / dist) * gravity;
+                    }
+
+                    x += vx;
+                    y += vy;
+                    
+                    // Drag
+                    vx *= 0.98;
+                    vy *= 0.98;
+
+                    updatedNpcs.push({ ...npc, x, y, vx, vy, health });
+                }
+                
+                // Spawn blue orbs for dead NPCs
+                if (newlyDeadNpcs.length > 0) {
+                    setBlueOrbs(prev => [
+                        ...prev,
+                        ...newlyDeadNpcs.map(npc => ({
+                            id: npc.id,
+                            x: npc.x,
+                            y: npc.y
+                        }))
+                    ]);
+                }
+
+                return updatedNpcs;
+            });
+            
             setPlayerState(p => {
                 let { x, y, vx, vy } = p;
                 
@@ -172,6 +313,32 @@ function Game() {
                     return remainingOrbs;
                 });
                 
+                // NPC Collision with Player
+                const npcSize = 25;
+                setNpcs(currentNpcs => {
+                    const remainingNpcs = [];
+                    let damageTaken = 0;
+                    for(const npc of currentNpcs) {
+                        const npcCenterX = npc.x + npcSize / 2;
+                        const npcCenterY = npc.y + npcSize / 2;
+                        const distBetween = Math.sqrt(
+                            Math.pow(playerCenterX - npcCenterX, 2) +
+                            Math.pow(playerCenterY - npcCenterY, 2)
+                        );
+
+                        if(distBetween < (playerSize / 2) + (npcSize / 2)) {
+                            damageTaken += 1;
+                            AudioManager.playSound('npc-explosion');
+                        } else {
+                            remainingNpcs.push(npc);
+                        }
+                    }
+                    if(damageTaken > 0) {
+                        setHealth(h => Math.max(0, h - damageTaken));
+                    }
+                    return remainingNpcs;
+                });
+
                 // Drag
                 vx *= 0.98;
                 vy *= 0.98;
@@ -259,7 +426,7 @@ function Game() {
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [initialized]);
+    }, [initialized, playerState.x, playerState.y]);
 
     return (
         <main ref={gameAreaRef} style={{
@@ -268,6 +435,8 @@ function Game() {
             transition: 'transform 0.1s ease-out'
         }}>
             {orbs.map(orb => <Orb key={orb.id} orb={orb} />)}
+            {blueOrbs.map(orb => <BlueOrb key={orb.id} orb={orb} />)}
+            {npcs.map(npc => <Npc key={npc.id} npc={npc} />)}
             <div ref={playerRef} className="player" style={{
                 transform: `translate(${playerState.x}px, ${playerState.y}px)`
             }}></div>
