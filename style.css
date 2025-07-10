@@ -163,7 +163,7 @@ h1 {
     height: 100vh;
     background-color: #000;
     z-index: 200;
-    animation: fade-out 5s ease-out forwards;
+    animation: fade-out 10s ease-in forwards;
 }
 
 @keyframes fade-out {
