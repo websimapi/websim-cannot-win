@@ -169,8 +169,3 @@ h1 {
     z-index: 20;
     will-change: transform;
 }
-
-.text-container {
-    position: relative;
-    z-index: 1;
-}
