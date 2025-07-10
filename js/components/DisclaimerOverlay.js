@@ -18,7 +18,7 @@ function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) {
             <div className="disclaimer-content">
                 <p>You are not able to win. It is actually not possible to win, even if you tried to win you would be unable to.</p>
                 <p>{username} tried to win on {date} and without a doubt 100% certinaly did not win.</p>
-                <p>{weekCount} users could not even win this week!</p>
+                <p>{weekCount > 0 ? `${weekCount} users could not even win this week!` : "No one has lost yet this week. Will you be the first?"}</p>
                 <p>What makes you think that you can win?!</p>
                 <button className="play-button" onClick={onPlayClick}>Play</button>
             </div>

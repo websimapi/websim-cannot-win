@@ -2,12 +2,11 @@ const { useState, useEffect, useSyncExternalStore, useMemo } = React;
 
 function App() {
     const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
-    const [showDisclaimer, setShowDisclaimer] = useState(true);
+    const [gameStarted, setGameStarted] = useState(false);
     const [isFading, setIsFading] = useState(false);
 
     const handlePlayClick = async () => {
         await lossesCollection.create({});
-        setShowDisclaimer(false);
         setIsFading(true);
         
         // Initialize and play audio on user interaction
@@ -16,6 +15,7 @@ function App() {
 
         setTimeout(() => {
             setIsFading(false);
+            setGameStarted(true); // Start the game after the fade
         }, 10000); // Corresponds to fade animation duration
     };
 
@@ -49,19 +49,24 @@ function App() {
         return { todayCount: today, weekCount: week };
     }, [losses]);
 
-    if (showDisclaimer) {
+    if (!gameStarted) {
         return (
-            <DisclaimerOverlay
-                onPlayClick={handlePlayClick}
-                mostRecentLoss={mostRecentLoss}
-                weekCount={weekCount}
-            />
+            <>
+                {isFading ? (
+                    <FadeInOverlay />
+                ) : (
+                    <DisclaimerOverlay
+                        onPlayClick={handlePlayClick}
+                        mostRecentLoss={mostRecentLoss}
+                        weekCount={weekCount}
+                    />
+                )}
+            </>
         );
     }
 
     return (
         <>
-            {isFading && <FadeInOverlay />}
             <div className="corner top-left">
                 <div className="counter-box">
                     <span>Most Recent Loser</span>
