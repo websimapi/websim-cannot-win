@@ -22,7 +22,7 @@ const Orb = ({ orb }) => {
     );
 };
 
-function Game() {
+function Game({ characterShape }) {
     const gameAreaRef = useRef(null);
     const playerRef = useRef(null);
     
@@ -274,7 +274,7 @@ function Game() {
             transition: 'transform 0.1s ease-out'
         }}>
             {orbs.map(orb => <Orb key={orb.id} orb={orb} />)}
-            <div ref={playerRef} className="player" style={{
+            <div ref={playerRef} className={`player ${characterShape}`} style={{
                 transform: `translate(${playerState.x}px, ${playerState.y}px)`
             }}></div>
             <div className="game-ui">

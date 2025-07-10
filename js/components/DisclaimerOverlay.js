@@ -1,6 +1,34 @@
 const { useState, useEffect } = React;
 
-function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) {
+const CharacterSelector = ({ onSelect, selectedShape }) => {
+    const characters = [
+        { name: 'Square', shape: 'square', unlocked: true },
+        { name: 'Circle', shape: 'circle', unlocked: true },
+        { name: 'Triangle', shape: 'triangle', unlocked: false },
+        { name: 'Rectangle', shape: 'rectangle', unlocked: false },
+    ];
+
+    return (
+        <div className="character-selector">
+            <h3>Hey, looks like you have been here before! Try out some of these</h3>
+            <div className="character-options">
+                {characters.map(char => (
+                    <button
+                        key={char.shape}
+                        className={`character-option ${selectedShape === char.shape ? 'selected' : ''}`}
+                        onClick={() => onSelect(char.shape)}
+                        disabled={!char.unlocked}
+                    >
+                        <div className={`char-preview ${char.shape}`}></div>
+                        <span>{char.name}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount, hasPlayedBefore, onCharacterSelect, selectedCharacter, currentUser }) {
     const [currentUser, setCurrentUser] = useState(null);
 
     useEffect(() => {
@@ -20,6 +48,14 @@ function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) {
                 <p>{username} tried to win on {date} and without a doubt 100% certinaly did not win.</p>
                 <p>{weekCount > 0 ? `${weekCount} users could not even win this week!` : "No one has lost yet this week. Will you be the first?"}</p>
                 <p>What makes you think that you can win?!</p>
+
+                {hasPlayedBefore && (
+                    <CharacterSelector
+                        onSelect={onCharacterSelect}
+                        selectedShape={selectedCharacter}
+                    />
+                )}
+                
                 <button className="play-button" onClick={onPlayClick}>Play</button>
             </div>
         </div>

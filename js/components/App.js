@@ -4,6 +4,12 @@ function App() {
     const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
     const [gameStarted, setGameStarted] = useState(false);
     const [isFading, setIsFading] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [characterShape, setCharacterShape] = useState('square');
+
+    useEffect(() => {
+        window.websim.getCurrentUser().then(setCurrentUser);
+    }, []);
 
     useEffect(() => {
         if (gameStarted) {
@@ -24,6 +30,13 @@ function App() {
             setIsFading(false);
         }, 10000); // Corresponds to fade animation duration
     };
+
+    const hasPlayedBefore = useMemo(() => {
+        if (!currentUser || !losses || losses.length === 0) {
+            return false;
+        }
+        return losses.some(loss => loss.username === currentUser.username);
+    }, [currentUser, losses]);
 
     const mostRecentLoss = useMemo(() => {
         return losses.length > 0 ? losses[0] : null;
@@ -61,6 +74,10 @@ function App() {
                 onPlayClick={handlePlayClick}
                 mostRecentLoss={mostRecentLoss}
                 weekCount={weekCount}
+                hasPlayedBefore={hasPlayedBefore}
+                onCharacterSelect={setCharacterShape}
+                selectedCharacter={characterShape}
+                currentUser={currentUser}
             />
         );
     }
@@ -92,7 +109,7 @@ function App() {
                     <div id="week-counter" className="counter-value">{weekCount}</div>
                 </div>
             </div>
-            <Game />
+            <Game characterShape={characterShape} />
         </>
     );
 }
