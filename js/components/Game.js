@@ -1,8 +1,9 @@
 const { useState, useEffect, useRef } = React;
 
-function Game() {
+function Game({ maxHealth }) {
     const gameAreaRef = useRef(null);
     const playerRef = useRef(null);
+    const [health, setHealth] = useState(maxHealth);
     
     const [playerState, setPlayerState] = useState({
         x: -100, // Start off-screen
@@ -14,6 +15,10 @@ function Game() {
     const [gameScale, setGameScale] = useState(1);
     const [initialized, setInitialized] = useState(false);
     const keysPressed = useRef({});
+
+    useEffect(() => {
+        setHealth(maxHealth);
+    }, [maxHealth]);
 
     useEffect(() => {
         if (gameAreaRef.current && !initialized) {
@@ -43,10 +48,16 @@ function Game() {
     useEffect(() => {
         if (!initialized) return;
 
+        let lastTime = performance.now();
         let animationFrameId;
 
-        const gameLoop = () => {
+        const gameLoop = (currentTime) => {
             if (!gameAreaRef.current) return;
+            const deltaTime = (currentTime - lastTime) / 1000; // time in seconds
+            lastTime = currentTime;
+
+            // Health depletion over time
+            setHealth(h => Math.max(0, h - (deltaTime * 0.5))); // Health decreases over time
 
             // Use offsetWidth and offsetHeight for consistent dimensions.
             const gameAreaWidth = gameAreaRef.current.offsetWidth;
@@ -160,12 +171,12 @@ function Game() {
             animationFrameId = requestAnimationFrame(gameLoop);
         };
 
-        gameLoop();
+        animationFrameId = requestAnimationFrame(gameLoop);
 
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [initialized]);
+    }, [initialized, maxHealth]);
 
     return (
         <>
@@ -174,10 +185,13 @@ function Game() {
                 transformOrigin: 'center',
                 transition: 'transform 0.1s ease-out'
             }}>
+                <div className="health-bar-container">
+                    <div className="health-bar" style={{ width: `${(health / maxHealth) * 100}%` }}></div>
+                </div>
                 <div ref={playerRef} className="player" style={{
                     transform: `translate(${playerState.x}px, ${playerState.y}px)`
                 }}></div>
-                <h1 className="visualizer-text">You Just Lost The Game</h1>
+                <h1>You Just Lost The Game</h1>
             </main>
         </>
     );
