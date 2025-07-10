@@ -193,42 +193,40 @@
                         vx *= 0.98;
                         vy *= 0.98;
 
-                        // Calculate zoom based on distance from planet center
+                        // Boundary restriction - Rectangular
+                        const boundarySizeMultiplier = 2.5; // Increased to allow going further out
+                        const boundaryWidth = gameAreaWidth * boundarySizeMultiplier;
+                        const boundaryHeight = gameAreaHeight * boundarySizeMultiplier;
+
+                        const boundaryLeft = planetCenter.x - boundaryWidth / 2;
+                        const boundaryRight = planetCenter.x + boundaryWidth / 2;
+                        const boundaryTop = planetCenter.y - boundaryHeight / 2;
+                        const boundaryBottom = planetCenter.y + boundaryHeight / 2;
+
                         const playerCenterX = x + playerSize / 2;
                         const playerCenterY = y + playerSize / 2;
+
+                        if (playerCenterX < boundaryLeft) {
+                            x = boundaryLeft - playerSize / 2;
+                            if (vx < 0) vx = 0;
+                        } else if (playerCenterX > boundaryRight) {
+                            x = boundaryRight - playerSize / 2;
+                            if (vx > 0) vx = 0;
+                        }
+
+                        if (playerCenterY < boundaryTop) {
+                            y = boundaryTop - playerSize / 2;
+                            if (vy < 0) vy = 0;
+                        } else if (playerCenterY > boundaryBottom) {
+                            y = boundaryBottom - playerSize / 2;
+                            if (vy > 0) vy = 0;
+                        }
+                        
+                        // Calculate zoom based on distance from planet center
                         const distanceFromCenter = Math.sqrt(
                             Math.pow(playerCenterX - planetCenter.x, 2) + 
                             Math.pow(playerCenterY - planetCenter.y, 2)
                         );
-                        
-                        // Boundary restriction
-                        const maxDistance = Math.max(gameAreaWidth, gameAreaHeight) * 1.5;
-                        if (distanceFromCenter > maxDistance) {
-                            // Vector from center to player
-                            const fromCenterDx = playerCenterX - planetCenter.x;
-                            const fromCenterDy = playerCenterY - planetCenter.y;
-
-                            // Project velocity onto this vector
-                            const dotProduct = vx * fromCenterDx + vy * fromCenterDy;
-
-                            // If moving away from center (dotProduct > 0), nullify outward velocity
-                            if (dotProduct > 0) {
-                                const fromCenterMagSq = fromCenterDx * fromCenterDx + fromCenterDy * fromCenterDy;
-                                if (fromCenterMagSq > 0) {
-                                    const projFactor = dotProduct / fromCenterMagSq;
-                                    const outwardVx = fromCenterDx * projFactor;
-                                    const outwardVy = fromCenterDy * projFactor;
-                                    
-                                    vx -= outwardVx;
-                                    vy -= outwardVy;
-                                }
-                            }
-                            
-                            // To prevent getting stuck, nudge back
-                            const angle = Math.atan2(fromCenterDy, fromCenterDx);
-                            x = planetCenter.x - playerSize / 2 + Math.cos(angle) * maxDistance;
-                            y = planetCenter.y - playerSize / 2 + Math.sin(angle) * maxDistance;
-                        }
 
                         // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
                         const zoomMaxDistance = Math.max(gameAreaWidth, gameAreaHeight) * 1.2;
