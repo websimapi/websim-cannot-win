@@ -5,6 +5,35 @@ function App() {
     const [showDisclaimer, setShowDisclaimer] = useState(true);
     const [isFading, setIsFading] = useState(false);
 
+    useEffect(() => {
+        if (showDisclaimer) return;
+
+        let animationFrameId;
+        const root = document.documentElement;
+
+        const visualize = () => {
+            const frequencyData = AudioManager.getFrequencyData();
+            if (frequencyData) {
+                // Use bass frequencies for a punchy effect
+                const bassFrequencies = frequencyData.slice(0, 5);
+                const averageBass = bassFrequencies.reduce((sum, value) => sum + value, 0) / bassFrequencies.length;
+                
+                // Normalize and scale the value for shadow spread
+                const shadowIntensity = (averageBass / 255) * 20; // Max 20px spread
+                
+                root.style.setProperty('--text-shadow-intensity', `${shadowIntensity}px`);
+            }
+            animationFrameId = requestAnimationFrame(visualize);
+        };
+
+        visualize();
+
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+            root.style.setProperty('--text-shadow-intensity', `4px`); // Reset on cleanup
+        };
+    }, [showDisclaimer]);
+
     const handlePlayClick = async () => {
         await lossesCollection.create({});
         setShowDisclaimer(false);

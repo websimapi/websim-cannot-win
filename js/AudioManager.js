@@ -4,6 +4,7 @@ const AudioManager = (() => {
     let musicBuffer = null;
     let sourceNode = null;
     let gainNode = null;
+    let analyserNode = null;
     let isPlaying = false;
     let audioInitialized = false;
 
@@ -33,7 +34,9 @@ const AudioManager = (() => {
         // Recreate GainNode to clear previous automation
         gainNode = audioContext.createGain();
         
-        sourceNode.connect(gainNode);
+        // Connect nodes: Source -> Analyser -> Gain -> Destination
+        sourceNode.connect(analyserNode);
+        analyserNode.connect(gainNode);
         gainNode.connect(audioContext.destination);
 
         const now = audioContext.currentTime;
@@ -67,8 +70,17 @@ const AudioManager = (() => {
             if (audioContext.state === 'suspended') {
                 await audioContext.resume();
             }
+            analyserNode = audioContext.createAnalyser();
+            analyserNode.fftSize = 256; // Smaller size for broader response
             await loadMusic('/yjltg-robo.ogg');
             audioInitialized = true;
+        },
+        getFrequencyData() {
+            if (!analyserNode) return null;
+            const bufferLength = analyserNode.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyserNode.getByteFrequencyData(dataArray);
+            return dataArray;
         },
         play() {
             if (!audioInitialized || isPlaying) return;
