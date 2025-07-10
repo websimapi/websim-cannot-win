@@ -1,4 +1,4 @@
-const { useState, useEffect, useSyncExternalStore, useMemo, useCallback } = React;
+const { useState, useEffect, useSyncExternalStore, useMemo } = React;
 
 function App() {
     const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
@@ -11,19 +11,7 @@ function App() {
         }
     }, [gameStarted]);
 
-    const handlePlayClick = useCallback(async () => {
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (isTouchDevice && screen.orientation && screen.orientation.lock) {
-            // This is a "nice-to-have" for landscape-first games, but we now support portrait.
-            // We can leave this as some users might prefer landscape. The browser will handle it.
-            // Or we could remove it to not suggest a preference. Let's keep it for now.
-            try {
-                // await screen.orientation.lock('landscape'); // Optional: can be removed
-            } catch (err) {
-                console.warn("Could not lock orientation. User can choose orientation.", err);
-            }
-        }
-
+    const handlePlayClick = async () => {
         await lossesCollection.create({});
         setGameStarted(true);
         setIsFading(true);
@@ -35,7 +23,7 @@ function App() {
         setTimeout(() => {
             setIsFading(false);
         }, 10000); // Corresponds to fade animation duration
-    }, []);
+    };
 
     const mostRecentLoss = useMemo(() => {
         return losses.length > 0 ? losses[0] : null;
@@ -80,28 +68,6 @@ function App() {
     return (
         <>
             {isFading && <FadeInOverlay />}
-            
-            {/* Status bar for mobile landscape */}
-            <div className="status-bar">
-                <div className="status-item">
-                    <span>Recent Loser</span>
-                    <div className="status-value">{mostRecentLoser}</div>
-                </div>
-                <div className="status-item">
-                    <span>Lost Today</span>
-                    <div className="status-value">{todayCount}</div>
-                </div>
-                <div className="status-item">
-                    <span>This Week</span>
-                    <div className="status-value">{weekCount}</div>
-                </div>
-                 <div className="status-item">
-                    <span>All Time</span>
-                    <div className="status-value">{allTimeCount}</div>
-                </div>
-            </div>
-
-            {/* Corner boxes for desktop */}
             <div className="corner top-left">
                 <div className="counter-box">
                     <span>Most Recent Loser</span>

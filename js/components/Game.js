@@ -1,13 +1,5 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
-const WORLD_WIDTH = 8000;
-const WORLD_HEIGHT = 8000;
-
-// The central "planet" is not the entire game world.
-// It's a smaller object in the center. Let's define its size.
-const PLANET_WIDTH = 600;
-const PLANET_HEIGHT = 400;
-
 const HealthBar = ({ health }) => {
     const maxHealth = 10;
     const healthPercentage = (health / maxHealth) * 100;
@@ -19,16 +11,12 @@ const HealthBar = ({ health }) => {
     );
 };
 
-const Orb = ({ orb, camera }) => {
-    // Convert world coords to screen coords
-    const screenX = orb.x - camera.x;
-    const screenY = orb.y - camera.y;
-
+const Orb = ({ orb }) => {
     return (
         <div
             className="orb"
             style={{
-                transform: `translate(${screenX}px, ${screenY}px)`,
+                transform: `translate(${orb.x}px, ${orb.y}px)`,
             }}
         ></div>
     );
@@ -39,59 +27,54 @@ function Game() {
     const playerRef = useRef(null);
     
     const [playerState, setPlayerState] = useState({
-        x: WORLD_WIDTH / 2, // Start at world center
-        y: WORLD_HEIGHT / 2,
+        x: -100, // Start off-screen
+        y: -100,
         vx: 0,
         vy: 0,
-    });
-    const [camera, setCamera] = useState({ 
-        x: playerState.x, 
-        y: playerState.y 
+        grounded: false
     });
     const [health, setHealth] = useState(10.0);
     const [orbs, setOrbs] = useState([]);
 
     const [gameScale, setGameScale] = useState(1);
     const [initialized, setInitialized] = useState(false);
+    const [gameAreaSize, setGameAreaSize] = useState({ width: 0, height: 0 });
+    
     const keysPressed = useRef({});
     const joystickInput = useRef({ x: 0, y: 0 });
-
     const isTouchDevice = 'ontouchstart' in window;
 
     // Joystick handler
     const handleJoystickMove = useCallback((vec) => {
         joystickInput.current = vec;
     }, []);
-
-    useEffect(() => {
-        if (gameAreaRef.current && !initialized) {
-            const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-            setPlayerState(p => ({
-                ...p,
-                x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
-                y: -50, // Start 50px above the game area, relative to it
-            }));
-            setInitialized(true);
-        }
-    }, [initialized]);
-
+    
+    // Effect to handle window resizing
     useEffect(() => {
         const handleResize = () => {
-             if (gameAreaRef.current) {
-                // This is a dummy state update to force a re-render
-                // which helps recalculating positions/dimensions if needed.
-                setInitialized(val => !val);
-                setInitialized(val => !val);
+            if (gameAreaRef.current) {
+                const rect = gameAreaRef.current.getBoundingClientRect();
+                setGameAreaSize({ width: rect.width, height: rect.height });
             }
         };
 
         window.addEventListener('resize', handleResize);
-        // Initial setup
-        setInitialized(true);
-        handleResize(); // run once on mount
+        handleResize(); // Set initial size
 
         return () => window.removeEventListener('resize', handleResize);
-    }, []);
+    }, []); // Empty dependency array means this runs once on mount
+
+    // Initialize player position once game area is sized
+    useEffect(() => {
+        if (gameAreaSize.width > 0 && gameAreaSize.height > 0 && !initialized) {
+            setPlayerState(p => ({
+                ...p,
+                x: gameAreaSize.width / 2 - 15, // Center horizontally
+                y: -50, // Start above the game area
+            }));
+            setInitialized(true);
+        }
+    }, [gameAreaSize, initialized]);
 
     // Health decay and orb spawning timers
     useEffect(() => {
@@ -102,23 +85,34 @@ function Game() {
         }, 3000);
 
         const orbInterval = setInterval(() => {
-            // Spawn orbs within the fixed world dimensions
-            const worldEdgeBuffer = 50; // Don't spawn at the very edge
+            // Access the latest gameAreaSize via gameAreaRef to avoid stale state in interval
+            if (!gameAreaRef.current) return;
+            const gameAreaWidth = gameAreaRef.current.offsetWidth;
+            const gameAreaHeight = gameAreaRef.current.offsetHeight;
 
-            // The central planet area where orbs should not spawn
-            const planetLeft = (WORLD_WIDTH - PLANET_WIDTH) / 2;
-            const planetRight = planetLeft + PLANET_WIDTH;
-            const planetTop = (WORLD_HEIGHT - PLANET_HEIGHT) / 2;
-            const planetBottom = planetTop + PLANET_HEIGHT;
+            // Spawn orbs within a larger area than the initial view
+            // Increased multiplier for a much wider spawn region.
+            const spawnRadiusX = gameAreaWidth * 6;
+            const spawnRadiusY = gameAreaHeight * 6;
             
+            // Add a buffer to prevent spawning at the very edge of the large spawn area.
+            const buffer = 10;
+            const effectiveSpawnRadiusX = spawnRadiusX - buffer * 2;
+            const effectiveSpawnRadiusY = spawnRadiusY - buffer * 2;
+
+            // Center the spawn area around the game area center
+            const spawnCenterX = gameAreaWidth / 2;
+            const spawnCenterY = gameAreaHeight / 2;
+
             let newOrbX, newOrbY;
+            
+            // This loop ensures orbs don't spawn inside the central game area.
             do {
-                newOrbX = Math.random() * (WORLD_WIDTH - worldEdgeBuffer * 2) + worldEdgeBuffer;
-                newOrbY = Math.random() * (WORLD_HEIGHT - worldEdgeBuffer * 2) + worldEdgeBuffer;
+                newOrbX = Math.random() * effectiveSpawnRadiusX - (effectiveSpawnRadiusX / 2) + spawnCenterX;
+                newOrbY = Math.random() * effectiveSpawnRadiusY - (effectiveSpawnRadiusY / 2) + spawnCenterY;
             } while (
-                // Ensure it doesn't spawn inside the central planet area
-                newOrbX > planetLeft && newOrbX < planetRight &&
-                newOrbY > planetTop && newOrbY < planetBottom
+                newOrbX >= 0 && newOrbX <= gameAreaWidth &&
+                newOrbY >= 0 && newOrbY <= gameAreaHeight
             );
 
             const newOrb = {
@@ -152,25 +146,28 @@ function Game() {
         let animationFrameId;
 
         const gameLoop = () => {
-            if (!gameAreaRef.current) {
-                animationFrameId = requestAnimationFrame(gameLoop);
-                return;
-            };
+            if (!gameAreaRef.current || gameAreaSize.width === 0) return;
 
-            const playerSize = 30; // Player's visual size
-            const worldCenterX = WORLD_WIDTH / 2;
-            const worldCenterY = WORLD_HEIGHT / 2;
+            // Use dimensions from state for consistency
+            const gameAreaWidth = gameAreaSize.width;
+            const gameAreaHeight = gameAreaSize.height;
+            
+            const planetCenter = {
+                x: gameAreaWidth / 2, // relative to gameArea
+                y: gameAreaHeight / 2 // relative to gameArea
+            };
+            const playerSize = 30;
 
             setPlayerState(p => {
                 let { x, y, vx, vy } = p;
                 
-                // Gravity towards the world center
-                const gravity = 0.3;
-                const dx = worldCenterX - x;
-                const dy = worldCenterY - y;
+                // Gravity
+                const gravity = 0.3; // slightly reduced for better control
+                const dx = planetCenter.x - (x + playerSize / 2);
+                const dy = planetCenter.y - (y + playerSize / 2);
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist > 1) { // avoid division by zero
+                if (dist > 0) {
                     vx += (dx / dist) * gravity;
                     vy += (dy / dist) * gravity;
                 }
@@ -178,35 +175,21 @@ function Game() {
                 // Update position first
                 x += vx;
                 y += vy;
-                
-                // World boundary collision (bouncing)
-                const bounceDamping = 0.8;
-                if (x < playerSize / 2) {
-                    x = playerSize / 2;
-                    vx = -vx * bounceDamping;
-                }
-                if (x > WORLD_WIDTH - playerSize / 2) {
-                    x = WORLD_WIDTH - playerSize / 2;
-                    vx = -vx * bounceDamping;
-                }
-                if (y < playerSize / 2) {
-                    y = playerSize / 2;
-                    vy = -vy * bounceDamping;
-                }
-                 if (y > WORLD_HEIGHT - playerSize / 2) {
-                    y = WORLD_HEIGHT - playerSize / 2;
-                    vy = -vy * bounceDamping;
-                }
 
-                // Orb Collision (using world coordinates)
+                // Orb Collision
                 const orbSize = 15;
+                const playerCenterX = x + playerSize / 2;
+                const playerCenterY = y + playerSize / 2;
+
                 setOrbs(currentOrbs => {
                     const remainingOrbs = [];
                     let healthGained = 0;
                     for (const orb of currentOrbs) {
+                        const orbCenterX = orb.x + orbSize / 2;
+                        const orbCenterY = orb.y + orbSize / 2;
                         const distBetween = Math.sqrt(
-                            Math.pow(x - orb.x, 2) +
-                            Math.pow(y - orb.y, 2)
+                            Math.pow(playerCenterX - orbCenterX, 2) +
+                            Math.pow(playerCenterY - orbCenterY, 2)
                         );
                         if (distBetween < (playerSize / 2) + (orbSize / 2)) {
                            healthGained += 0.1;
@@ -224,8 +207,73 @@ function Game() {
                 vx *= 0.98;
                 vy *= 0.98;
 
+                // Calculate zoom based on distance from planet center
+                const distanceFromCenter = Math.sqrt(
+                    Math.pow(playerCenterX - planetCenter.x, 2) + 
+                    Math.pow(playerCenterY - planetCenter.y, 2)
+                );
+                
+                // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
+                const maxDistance = Math.max(gameAreaWidth, gameAreaHeight);
+                const normalizedDistance = Math.min(distanceFromCenter / maxDistance, 1);
+                const minScale = 0.4; // Don't zoom out too much
+                const maxScale = 1.2; // Allow slight zoom in when very close
+                const targetScale = maxScale - (normalizedDistance * (maxScale - minScale));
+                
+                // Smooth scale transition
+                setGameScale(prevScale => {
+                    const scaleDiff = targetScale - prevScale;
+                    return prevScale + scaleDiff * 0.1; // Smooth interpolation
+                });
+
+                // Collision detection with planet
+                let grounded = false;
+                const playerRect = {
+                    left: x,
+                    right: x + playerSize,
+                    top: y,
+                    bottom: y + playerSize
+                };
+
+                const planetRect = {
+                    left: 0,
+                    right: gameAreaWidth,
+                    top: 0,
+                    bottom: gameAreaHeight
+                };
+
+                const isColliding = playerRect.right > planetRect.left &&
+                                  playerRect.left < planetRect.right &&
+                                  playerRect.bottom > planetRect.top &&
+                                  playerRect.top < planetRect.bottom;
+
+                if (isColliding) {
+                    grounded = true;
+                   
+                    const penLeft = playerRect.right - planetRect.left;
+                    const penRight = planetRect.right - playerRect.left;
+                    const penTop = playerRect.bottom - planetRect.top;
+                    const penBottom = planetRect.bottom - playerRect.top;
+
+                    const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+
+                    if (minPen === penTop) { // Colliding with top edge
+                        y = planetRect.top - playerSize;
+                        vy = 0;
+                    } else if (minPen === penBottom) { // Colliding with bottom edge
+                        y = planetRect.bottom;
+                        vy = 0;
+                    } else if (minPen === penLeft) { // Colliding with left edge
+                        x = planetRect.left - playerSize;
+                        vx = 0;
+                    } else { // Colliding with right edge
+                        x = planetRect.right;
+                        vx = 0;
+                    }
+                }
+
                 // Controls
-                const moveForce = 0.8; 
+                const moveForce = 0.8; // Reduced force for finer control
                 if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW']) vy -= moveForce;
                 if (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS']) vy += moveForce;
                 if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
@@ -239,31 +287,7 @@ function Game() {
                     vx += joystickInput.current.x * moveForce;
                 }
 
-                return { x, y, vx, vy };
-            });
-
-            // Update camera to smoothly follow player
-            setCamera(c => ({
-                x: c.x + (playerState.x - c.x) * 0.1,
-                y: c.y + (playerState.y - c.y) * 0.1,
-            }));
-            
-            // Calculate zoom based on distance from world center
-            const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-            const distanceFromCenter = Math.sqrt(
-                Math.pow(playerState.x - worldCenterX, 2) + 
-                Math.pow(playerState.y - worldCenterY, 2)
-            );
-            
-            const maxDistance = Math.max(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
-            const normalizedDistance = Math.min(distanceFromCenter / maxDistance, 1);
-            const minScale = 0.2; 
-            const maxScale = 1.2; 
-            const targetScale = maxScale - (normalizedDistance * (maxScale - minScale));
-            
-            setGameScale(prevScale => {
-                const scaleDiff = targetScale - prevScale;
-                return prevScale + scaleDiff * 0.1;
+                return { x, y, vx, vy, grounded };
             });
 
             animationFrameId = requestAnimationFrame(gameLoop);
@@ -274,49 +298,23 @@ function Game() {
         return () => {
             cancelAnimationFrame(animationFrameId);
         };
-    }, [initialized, handleJoystickMove]);
-
-    // Calculate screen positions for rendering
-    const gameAreaRect = gameAreaRef.current?.getBoundingClientRect() || { width: 0, height: 0 };
-    const viewportCenterX = gameAreaRect.width / 2;
-    const viewportCenterY = gameAreaRect.height / 2;
-
-    const playerScreenX = viewportCenterX;
-    const playerScreenY = viewportCenterY;
-    
-    // Position the world container (with the planet) based on camera
-    const worldContainerX = viewportCenterX - camera.x;
-    const worldContainerY = viewportCenterY - camera.y;
+    }, [initialized, handleJoystickMove, gameAreaSize]); // Add gameAreaSize as a dependency
 
     return (
         <>
             <main ref={gameAreaRef} style={{
-                // The main container no longer scales, only the inner world
-                // It now acts as the viewport
+                transform: `scale(${gameScale})`,
+                transformOrigin: 'center',
+                transition: 'transform 0.1s ease-out'
             }}>
-                <div className="world-container" style={{
-                    transform: `translate(${worldContainerX}px, ${worldContainerY}px) scale(${gameScale})`,
-                    transformOrigin: `${camera.x}px ${camera.y}px`,
-                }}>
-                     {/* The planet is an element inside the world */}
-                    <div className="planet" style={{
-                        width: PLANET_WIDTH,
-                        height: PLANET_HEIGHT,
-                        left: (WORLD_WIDTH - PLANET_WIDTH) / 2,
-                        top: (WORLD_HEIGHT - PLANET_HEIGHT) / 2,
-                    }}>
-                        <div className="game-ui">
-                            <HealthBar health={health} />
-                            <h1>You Just Lost The Game</h1>
-                        </div>
-                    </div>
-                    {orbs.map(orb => <Orb key={orb.id} orb={orb} camera={{x: 0, y: 0}} />)}
-                </div>
-
-                {/* Player is rendered separately, stays in viewport center */}
+                {orbs.map(orb => <Orb key={orb.id} orb={orb} />)}
                 <div ref={playerRef} className="player" style={{
-                    transform: `translate(${playerScreenX - 15}px, ${playerScreenY - 15}px) scale(${gameScale})` // -15 to center the 30px player
+                    transform: `translate(${playerState.x}px, ${playerState.y}px)`
                 }}></div>
+                <div className="game-ui">
+                    <HealthBar health={health} />
+                    <h1>You Just Lost The Game</h1>
+                </div>
             </main>
             {isTouchDevice && <VirtualJoystick onMove={handleJoystickMove} />}
         </>
