@@ -17,28 +17,53 @@
         const room = new WebsimSocket();
         const lossesCollection = room.collection('losses_v2');
 
+        function DisclaimerOverlay({ onPlayClick, mostRecentLoss, weekCount }) {
+            const [currentUser, setCurrentUser] = useState(null);
+
+            useEffect(() => {
+                window.websim.getCurrentUser().then(setCurrentUser);
+            }, []);
+
+            const username = mostRecentLoss ? mostRecentLoss.username : (currentUser ? currentUser.username : 'Someone');
+            const date = mostRecentLoss ? new Date(mostRecentLoss.created_at).toLocaleDateString() : new Date().toLocaleDateString();
+
+            return (
+                <div className="disclaimer-overlay">
+                    <div className="disclaimer-content">
+                        <p>You are not able to win. It is actually not possible to win, even if you tried to win you would be unable to.</p>
+                        <p>{username} tried to win on {date} and without a doubt 100% certinaly did not win.</p>
+                        <p>{weekCount} users could not even win this week!</p>
+                        <p>What makes you think that you can win?!</p>
+                        <button className="play-button" onClick={onPlayClick}>Play</button>
+                    </div>
+                </div>
+            );
+        }
+
         function App() {
             const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
+            const [showDisclaimer, setShowDisclaimer] = useState(true);
 
             useEffect(() => {
                 const hasLost = sessionStorage.getItem('hasLostTheGame');
                 if (!hasLost) {
                     const createLoss = async () => {
-                        // We get the list directly to ensure we have the latest count before creating.
-                        const currentLosses = lossesCollection.getList();
-                        const allTimeCount = currentLosses.length + 1;
-                        await lossesCollection.create({ allTimeCount });
+                        await lossesCollection.create({});
                         sessionStorage.setItem('hasLostTheGame', 'true');
                     };
                     createLoss();
                 }
             }, []);
 
-            const mostRecentLoser = useMemo(() => {
-                return losses.length > 0 ? losses[0].username : '...';
+            const mostRecentLoss = useMemo(() => {
+                return losses.length > 0 ? losses[0] : null;
             }, [losses]);
 
             const allTimeCount = useMemo(() => losses.length, [losses]);
+            
+            const mostRecentLoser = useMemo(() => {
+                return mostRecentLoss ? mostRecentLoss.username : '...';
+            }, [mostRecentLoss]);
 
             const { todayCount, weekCount } = useMemo(() => {
                 const now = new Date();
@@ -59,6 +84,16 @@
                 }
                 return { todayCount: today, weekCount: week };
             }, [losses]);
+
+            if (showDisclaimer) {
+                return (
+                    <DisclaimerOverlay
+                        onPlayClick={() => setShowDisclaimer(false)}
+                        mostRecentLoss={mostRecentLoss}
+                        weekCount={weekCount}
+                    />
+                );
+            }
 
             return (
                 <>
