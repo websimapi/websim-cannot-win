@@ -5,6 +5,12 @@ function App() {
     const [gameStarted, setGameStarted] = useState(false);
     const [isFading, setIsFading] = useState(false);
 
+    useEffect(() => {
+        if (gameStarted) {
+            document.body.classList.add('game-started');
+        }
+    }, [gameStarted]);
+
     const handlePlayClick = async () => {
         await lossesCollection.create({});
         setGameStarted(true);
