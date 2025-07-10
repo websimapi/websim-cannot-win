@@ -23,6 +23,7 @@
             let musicBuffer = null;
             let sourceNode = null;
             let gainNode = null;
+            let analyserNode = null; // For visualization
             let isPlaying = false;
             let audioInitialized = false;
 
@@ -52,7 +53,9 @@
                 // Recreate GainNode to clear previous automation
                 gainNode = audioContext.createGain();
                 
-                sourceNode.connect(gainNode);
+                // Connect nodes: source -> analyser -> gain -> destination
+                sourceNode.connect(analyserNode);
+                analyserNode.connect(gainNode);
                 gainNode.connect(audioContext.destination);
 
                 const now = audioContext.currentTime;
@@ -86,6 +89,8 @@
                     if (audioContext.state === 'suspended') {
                         await audioContext.resume();
                     }
+                    analyserNode = audioContext.createAnalyser();
+                    analyserNode.fftSize = 256; // Lower size for broader frequency bins
                     await loadMusic('/yjltg-robo.ogg');
                     audioInitialized = true;
                 },
@@ -102,9 +107,23 @@
                     isPlaying = false; // Prevents looping via onended
                     sourceNode.stop();
                     sourceNode = null;
+                },
+                getAnalyser() { // Expose analyser for visualization
+                    return analyserNode;
                 }
             };
         })();
+
+        // Helper to wrap letters in spans
+        function Title({ text }) {
+            const letters = text.split('').map((char, index) => {
+                if (char === ' ') {
+                    return <span key={index} className="letter space">&nbsp;</span>;
+                }
+                return <span key={index} className="letter">{char}</span>;
+            });
+            return <h1 className="visualizer-title">{letters}</h1>;
+        }
 
         function Game() {
             const gameAreaRef = useRef(null);
@@ -135,182 +154,64 @@
                 }
             }, [initialized]);
 
+            // Visualizer effect
             useEffect(() => {
-                const handleKeyDown = (e) => { keysPressed.current[e.code] = true; };
-                const handleKeyUp = (e) => { keysPressed.current[e.code] = false; };
-                window.addEventListener('keydown', handleKeyDown);
-                window.addEventListener('keyup', handleKeyUp);
-                return () => {
-                    window.removeEventListener('keydown', handleKeyDown);
-                    window.removeEventListener('keyup', handleKeyUp);
-                };
-            }, []);
+                const analyser = AudioManager.getAnalyser();
+                if (!analyser) return;
 
-            useEffect(() => {
-                if (!initialized) return;
-
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
                 let animationFrameId;
 
-                const gameLoop = () => {
-                    if (!gameAreaRef.current) return;
+                const visualize = () => {
+                    animationFrameId = requestAnimationFrame(visualize);
+                    analyser.getByteFrequencyData(dataArray);
 
-                    // Use offsetWidth and offsetHeight for consistent dimensions.
-                    const gameAreaWidth = gameAreaRef.current.offsetWidth;
-                    const gameAreaHeight = gameAreaRef.current.offsetHeight;
-                    
-                    const planetCenter = {
-                        x: gameAreaWidth / 2, // relative to gameArea
-                        y: gameAreaHeight / 2 // relative to gameArea
-                    };
-                    const playerSize = 30;
+                    // Bass frequencies (approx first 20% of buffer)
+                    const bassEndIndex = Math.floor(bufferLength * 0.2);
+                    let bassTotal = 0;
+                    for (let i = 0; i < bassEndIndex; i++) {
+                        bassTotal += dataArray[i];
+                    }
+                    const bassAverage = bassTotal / bassEndIndex;
 
-                    setPlayerState(p => {
-                        let { x, y, vx, vy } = p;
-                        
-                        // Gravity
-                        const gravity = 0.3; // slightly reduced for better control
-                        const dx = planetCenter.x - (x + playerSize / 2);
-                        const dy = planetCenter.y - (y + playerSize / 2);
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (dist > 0) {
-                            vx += (dx / dist) * gravity;
-                            vy += (dy / dist) * gravity;
-                        }
+                    // Normalize to a value between 0 and 1, then scale for effect
+                    const normalizedPulse = bassAverage / 255;
+                    const scale = 1 + normalizedPulse * 0.4; // Pulse up to 40% bigger
 
-                        // Controls
-                        const moveForce = 0.8; // Reduced force for finer control
-                        if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW']) vy -= moveForce;
-                        if (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS']) vy += moveForce;
-                        if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
-                        if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
-
-                        // Update position first
-                        x += vx;
-                        y += vy;
-                        
-                        // Drag
-                        vx *= 0.98;
-                        vy *= 0.98;
-
-                        // Boundary restriction - Rectangular
-                        const boundarySizeMultiplier = 2.5; // Increased to allow going further out
-                        const boundaryWidth = gameAreaWidth * boundarySizeMultiplier;
-                        const boundaryHeight = gameAreaHeight * boundarySizeMultiplier;
-
-                        const boundaryLeft = planetCenter.x - boundaryWidth / 2;
-                        const boundaryRight = planetCenter.x + boundaryWidth / 2;
-                        const boundaryTop = planetCenter.y - boundaryHeight / 2;
-                        const boundaryBottom = planetCenter.y + boundaryHeight / 2;
-
-                        const playerCenterX = x + playerSize / 2;
-                        const playerCenterY = y + playerSize / 2;
-
-                        if (playerCenterX < boundaryLeft) {
-                            x = boundaryLeft - playerSize / 2;
-                            if (vx < 0) vx = 0;
-                        } else if (playerCenterX > boundaryRight) {
-                            x = boundaryRight - playerSize / 2;
-                            if (vx > 0) vx = 0;
-                        }
-
-                        if (playerCenterY < boundaryTop) {
-                            y = boundaryTop - playerSize / 2;
-                            if (vy < 0) vy = 0;
-                        } else if (playerCenterY > boundaryBottom) {
-                            y = boundaryBottom - playerSize / 2;
-                            if (vy > 0) vy = 0;
-                        }
-                        
-                        // Calculate zoom based on distance from planet center
-                        const distanceFromCenter = Math.sqrt(
-                            Math.pow(playerCenterX - planetCenter.x, 2) + 
-                            Math.pow(playerCenterY - planetCenter.y, 2)
-                        );
-
-                        // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
-                        const zoomMaxDistance = Math.max(gameAreaWidth, gameAreaHeight) * 1.2;
-                        const normalizedDistance = Math.min(distanceFromCenter / zoomMaxDistance, 1);
-                        const minScale = 0.3; // Don't zoom out too much
-                        const maxScale = 1.2; // Allow slight zoom in when very close
-                        const targetScale = maxScale - (normalizedDistance * (maxScale - minScale));
-                        
-                        // Smooth scale transition
-                        setGameScale(prevScale => {
-                            const scaleDiff = targetScale - prevScale;
-                            return prevScale + scaleDiff * 0.1; // Smooth interpolation
+                    const letters = gameAreaRef.current.querySelectorAll('.letter');
+                    if(letters.length > 0) {
+                        letters.forEach((letter, i) => {
+                             // Apply a slight delay to each letter for a ripple effect
+                            const delay = i * 0.03;
+                            const delayedScale = 1 + (normalizedPulse * Math.cos(delay)) * 0.4;
+                            letter.style.transform = `scale(${delayedScale})`;
                         });
-
-                        // Collision detection with planet
-                        let grounded = false;
-                        const playerRect = {
-                            left: x,
-                            right: x + playerSize,
-                            top: y,
-                            bottom: y + playerSize
-                        };
-
-                        const planetRect = {
-                            left: 0,
-                            right: gameAreaWidth,
-                            top: 0,
-                            bottom: gameAreaHeight
-                        };
-
-                        const isColliding = playerRect.right > planetRect.left &&
-                                          playerRect.left < planetRect.right &&
-                                          playerRect.bottom > planetRect.top &&
-                                          playerRect.top < planetRect.bottom;
-
-                        if (isColliding) {
-                            grounded = true;
-                           
-                            const penLeft = playerRect.right - planetRect.left;
-                            const penRight = planetRect.right - playerRect.left;
-                            const penTop = playerRect.bottom - planetRect.top;
-                            const penBottom = planetRect.bottom - playerRect.top;
-
-                            const minPen = Math.min(penLeft, penRight, penTop, penBottom);
-
-                            if (minPen === penTop) { // Colliding with top edge
-                                y = planetRect.top - playerSize;
-                                vy = 0;
-                            } else if (minPen === penBottom) { // Colliding with bottom edge
-                                y = planetRect.bottom;
-                                vy = 0;
-                            } else if (minPen === penLeft) { // Colliding with left edge
-                                x = planetRect.left - playerSize;
-                                vx = 0;
-                            } else if (minPen === penRight) { // Colliding with right edge
-                                x = planetRect.right;
-                                vx = 0;
-                            }
-                        }
-
-                        return { x, y, vx, vy, grounded };
-                    });
-
-                    animationFrameId = requestAnimationFrame(gameLoop);
+                    }
                 };
 
-                gameLoop();
+                visualize();
 
                 return () => {
                     cancelAnimationFrame(animationFrameId);
+                    // Reset styles on cleanup
+                    const letters = gameAreaRef.current?.querySelectorAll('.letter');
+                    if(letters?.length > 0) {
+                        letters.forEach(letter => letter.style.transform = 'scale(1)');
+                    }
                 };
             }, [initialized]);
 
             return (
                 <>
                     <main ref={gameAreaRef} style={{
-                        transform: `scale(${gameScale})`,
                         transformOrigin: 'center',
                         transition: 'transform 0.1s ease-out'
                     }}>
                         <div ref={playerRef} className="player" style={{
-                            transform: `translate(${playerState.x}px, ${playerState.y}px)`
+                            display: 'none' // Hide player for now
                         }}></div>
-                        <h1>You Just Lost The Game</h1>
+                        <Title text="You Just Lost The Game" />
                     </main>
                 </>
             );

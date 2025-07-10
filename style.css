@@ -64,6 +64,26 @@ h1 {
     text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
 }
 
+h1.visualizer-title {
+    font-size: clamp(2rem, 5vw, 4rem);
+    margin: 0;
+    color: #d90429;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    display: flex; /* Make letters flex items */
+    justify-content: center;
+}
+
+.letter {
+    display: inline-block; /* Allows transform */
+    transition: transform 0.1s ease-out; /* Smooth scaling */
+    will-change: transform;
+}
+
+.letter.space {
+    width: 0.5em; /* Give spaces some width */
+}
+
 .corner {
     position: fixed;
     padding: 1.5rem;
@@ -204,4 +224,5 @@ h1 {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     z-index: 20;
     will-change: transform;
+    display: none; /* Hiding player for visualizer focus */
 }
