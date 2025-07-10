@@ -62,7 +62,6 @@ function Game() {
 
         const orbInterval = setInterval(() => {
             if (!gameAreaRef.current) return;
-            // Spawning logic uses offsetWidth which will now be the full window width, which is fine.
             const gameAreaWidth = gameAreaRef.current.offsetWidth;
             const gameAreaHeight = gameAreaRef.current.offsetHeight;
 
@@ -108,7 +107,6 @@ function Game() {
             if (!gameAreaRef.current) return;
 
             // Use offsetWidth and offsetHeight for consistent dimensions.
-            // These will now refer to the whole window.
             const gameAreaWidth = gameAreaRef.current.offsetWidth;
             const gameAreaHeight = gameAreaRef.current.offsetHeight;
             
@@ -186,6 +184,52 @@ function Game() {
                     return prevScale + scaleDiff * 0.1; // Smooth interpolation
                 });
 
+                // Collision detection with planet
+                let grounded = false;
+                const playerRect = {
+                    left: x,
+                    right: x + playerSize,
+                    top: y,
+                    bottom: y + playerSize
+                };
+
+                const planetRect = {
+                    left: 0,
+                    right: gameAreaWidth,
+                    top: 0,
+                    bottom: gameAreaHeight
+                };
+
+                const isColliding = playerRect.right > planetRect.left &&
+                                  playerRect.left < planetRect.right &&
+                                  playerRect.bottom > planetRect.top &&
+                                  playerRect.top < planetRect.bottom;
+
+                if (isColliding) {
+                    grounded = true;
+                   
+                    const penLeft = playerRect.right - planetRect.left;
+                    const penRight = planetRect.right - playerRect.left;
+                    const penTop = playerRect.bottom - planetRect.top;
+                    const penBottom = planetRect.bottom - playerRect.top;
+
+                    const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+
+                    if (minPen === penTop) { // Colliding with top edge
+                        y = planetRect.top - playerSize;
+                        vy = 0;
+                    } else if (minPen === penBottom) { // Colliding with bottom edge
+                        y = planetRect.bottom;
+                        vy = 0;
+                    } else if (minPen === penLeft) { // Colliding with left edge
+                        x = planetRect.left - playerSize;
+                        vx = 0;
+                    } else { // Colliding with right edge
+                        x = planetRect.right;
+                        vx = 0;
+                    }
+                }
+
                 // Controls
                 const moveForce = 0.8; // Reduced force for finer control
                 if (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW']) vy -= moveForce;
@@ -193,7 +237,7 @@ function Game() {
                 if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
                 if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
 
-                return { x, y, vx, vy, grounded: false }; // Grounded is always false now
+                return { x, y, vx, vy, grounded };
             });
 
             animationFrameId = requestAnimationFrame(gameLoop);
@@ -207,26 +251,19 @@ function Game() {
     }, [initialized]);
 
     return (
-        <>
-            <div
-                ref={gameAreaRef}
-                className="game-world"
-                style={{
-                    transform: `scale(${gameScale}) translate(-50%, -50%)`,
-                    transformOrigin: 'top left',
-                }}
-            >
-                {orbs.map(orb => <Orb key={orb.id} orb={orb} />)}
-                <div ref={playerRef} className="player" style={{
-                    transform: `translate(${playerState.x}px, ${playerState.y}px)`
-                }}></div>
+        <main ref={gameAreaRef} style={{
+            transform: `scale(${gameScale})`,
+            transformOrigin: 'center',
+            transition: 'transform 0.1s ease-out'
+        }}>
+            {orbs.map(orb => <Orb key={orb.id} orb={orb} />)}
+            <div ref={playerRef} className="player" style={{
+                transform: `translate(${playerState.x}px, ${playerState.y}px)`
+            }}></div>
+            <div className="game-ui">
+                <HealthBar health={health} />
+                <h1>You Just Lost The Game</h1>
             </div>
-            <main>
-                <div className="game-ui">
-                    <HealthBar health={health} />
-                    <h1>You Just Lost The Game</h1>
-                </div>
-            </main>
-        </>
+        </main>
     );
 }
