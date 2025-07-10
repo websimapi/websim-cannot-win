@@ -145,13 +145,13 @@
                                 y = -playerSize;
                                 vy = 0;
                             } else if (minPen === penBottom) { // Pushing out from bottom of box
-                                y = gameAreaRect.height - playerSize;
+                                y = gameAreaRect.height;
                                 vy = 0;
                             } else if (minPen === penLeft) { // Pushing out from left of box
                                 x = -playerSize;
                                 vx = 0;
                             } else { // Pushing out from right of box
-                                x = gameAreaRect.width - playerSize;
+                                x = gameAreaRect.width;
                                 vx = 0;
                             }
                         }
@@ -183,8 +183,6 @@
                         transformOrigin: 'center',
                         transition: 'transform 0.1s ease-out'
                     }}>
-                        <div className="gravity-field-debug"></div>
-                        <div className="platform-debug"></div>
                         <div ref={playerRef} className="player" style={{
                             transform: `translate(${playerState.x}px, ${playerState.y}px)`
                         }}></div>
