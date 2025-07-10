@@ -127,32 +127,39 @@
                             bottom: y + playerSize
                         };
 
-                        const isColliding = playerRect.right > 0 &&
-                                          playerRect.left < gameAreaWidth &&
-                                          playerRect.bottom > 0 &&
-                                          playerRect.top < gameAreaHeight;
+                        const planetRect = {
+                            left: 0,
+                            right: gameAreaWidth,
+                            top: 0,
+                            bottom: gameAreaHeight
+                        };
+
+                        const isColliding = playerRect.right > planetRect.left &&
+                                          playerRect.left < planetRect.right &&
+                                          playerRect.bottom > planetRect.top &&
+                                          playerRect.top < planetRect.bottom;
 
                         if (isColliding) {
                             grounded = true;
                            
-                            const penLeft = playerRect.right;
-                            const penRight = gameAreaWidth - playerRect.left;
-                            const penTop = playerRect.bottom;
-                            const penBottom = gameAreaHeight - playerRect.top;
+                            const penLeft = playerRect.right - planetRect.left;
+                            const penRight = planetRect.right - playerRect.left;
+                            const penTop = playerRect.bottom - planetRect.top;
+                            const penBottom = planetRect.bottom - playerRect.top;
 
                             const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
                             if (minPen === penTop) { // Colliding with top edge
-                                y = 0;
+                                y = planetRect.top - playerSize;
                                 vy = 0;
                             } else if (minPen === penBottom) { // Colliding with bottom edge
-                                y = gameAreaHeight - playerSize;
+                                y = planetRect.bottom;
                                 vy = 0;
                             } else if (minPen === penLeft) { // Colliding with left edge
-                                x = 0;
+                                x = planetRect.left - playerSize;
                                 vx = 0;
                             } else { // Colliding with right edge
-                                x = gameAreaWidth - playerSize;
+                                x = planetRect.right;
                                 vx = 0;
                             }
                         }
