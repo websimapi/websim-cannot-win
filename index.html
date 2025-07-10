@@ -20,6 +20,7 @@
         function Game() {
             const gameAreaRef = useRef(null);
             const playerRef = useRef(null);
+            const containerRef = useRef(null);
             
             const [playerState, setPlayerState] = useState({
                 x: -100, // Start off-screen
@@ -63,9 +64,20 @@
                 let animationFrameId;
 
                 const gameLoop = () => {
-                    if (!gameAreaRef.current) return;
+                    if (!gameAreaRef.current || !containerRef.current) return;
 
                     const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
+                    const containerRect = containerRef.current.getBoundingClientRect();
+                    const gameAreaOffsetRect = gameAreaRef.current.getBoundingClientRect();
+                    
+                    // Calculate container bounds relative to game area
+                    const containerBounds = {
+                        left: containerRect.left - gameAreaOffsetRect.left,
+                        right: containerRect.right - gameAreaOffsetRect.left,
+                        top: containerRect.top - gameAreaOffsetRect.top,
+                        bottom: containerRect.bottom - gameAreaOffsetRect.top
+                    };
+
                     const planetCenter = {
                         x: gameAreaRect.width / 2, // relative to gameArea
                         y: gameAreaRect.height / 2 // relative to gameArea
@@ -115,7 +127,7 @@
                             return prevScale + scaleDiff * 0.1; // Smooth interpolation
                         });
 
-                        // Collision detection with planet
+                        // Collision detection with container (not the entire game area)
                         let grounded = false;
                         const playerRect = {
                             left: x,
@@ -126,33 +138,34 @@
                             centerY: y + playerSize / 2
                         };
 
-                        const isColliding = playerRect.right > 0 &&
-                                          playerRect.left < gameAreaRect.width &&
-                                          playerRect.bottom > 0 &&
-                                          playerRect.top < gameAreaRect.height;
+                        // Check collision with the container bounds
+                        const isColliding = playerRect.right > containerBounds.left &&
+                                          playerRect.left < containerBounds.right &&
+                                          playerRect.bottom > containerBounds.top &&
+                                          playerRect.top < containerBounds.bottom;
                         
                         if (isColliding) {
-                             grounded = true;
+                            grounded = true;
                             // Find shallowest penetration and push out
-                            const penLeft = playerRect.right;
-                            const penRight = gameAreaRect.width - playerRect.left;
-                            const penTop = playerRect.bottom;
-                            const penBottom = gameAreaRect.height - playerRect.top;
+                            const penLeft = playerRect.right - containerBounds.left;
+                            const penRight = containerBounds.right - playerRect.left;
+                            const penTop = playerRect.bottom - containerBounds.top;
+                            const penBottom = containerBounds.bottom - playerRect.top;
 
                             const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
-                            if (minPen === penTop) { // Pushing out from top of box
-                                y = -playerSize;
-                                vy = 0;
-                            } else if (minPen === penBottom) { // Pushing out from bottom of box
-                                y = gameAreaRect.height;
-                                vy = 0;
-                            } else if (minPen === penLeft) { // Pushing out from left of box
-                                x = -playerSize;
-                                vx = 0;
-                            } else { // Pushing out from right of box
-                                x = gameAreaRect.width;
-                                vx = 0;
+                            if (minPen === penTop) { // Pushing out from top of container
+                                y = containerBounds.top - playerSize;
+                                vy = Math.min(vy, 0);
+                            } else if (minPen === penBottom) { // Pushing out from bottom of container
+                                y = containerBounds.bottom;
+                                vy = Math.max(vy, 0);
+                            } else if (minPen === penLeft) { // Pushing out from left of container
+                                x = containerBounds.left - playerSize;
+                                vx = Math.min(vx, 0);
+                            } else { // Pushing out from right of container
+                                x = containerBounds.right;
+                                vx = Math.max(vx, 0);
                             }
                         }
 
@@ -186,7 +199,9 @@
                         <div ref={playerRef} className="player" style={{
                             transform: `translate(${playerState.x}px, ${playerState.y}px)`
                         }}></div>
-                        <h1>You Just Lost The Game</h1>
+                        <div ref={containerRef} className="text-container">
+                            <h1>You Just Lost The Game</h1>
+                        </div>
                     </main>
                 </>
             );
