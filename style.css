@@ -59,6 +59,10 @@ main {
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(0, 0, 0, 0.05);
+    /* Adding transform for scale to live here */
+    transform: var(--main-scale, scale(1));
+    transform-origin: center;
+    transition: transform 0.1s ease-out;
 }
 
 h1 {
@@ -66,7 +70,9 @@ h1 {
     margin: 0;
     color: #d90429;
     font-weight: 700;
-    text-shadow: 0 0 var(--text-shadow-intensity) var(--text-shadow-color);
+    text-shadow: 
+        0 0 var(--text-shadow-intensity) var(--text-shadow-color),
+        0 0 calc(var(--text-shadow-intensity) * 1.5) var(--text-shadow-color);
     transition: text-shadow 0.05s ease-out;
 }
 
@@ -76,7 +82,9 @@ h1 {
     font-size: 1.2rem;
     font-weight: 500;
     z-index: 10;
-    text-shadow: 0 0 var(--text-shadow-intensity) var(--text-shadow-color);
+    text-shadow: 
+        0 0 var(--text-shadow-intensity) var(--text-shadow-color),
+        0 0 calc(var(--text-shadow-intensity) * 0.5) var(--text-shadow-color);
     transition: text-shadow 0.05s ease-out;
 }
 
@@ -91,8 +99,6 @@ h1 {
     flex-direction: column;
     gap: 0.5rem;
     align-items: center;
-    text-shadow: 0 0 var(--text-shadow-intensity) var(--text-shadow-color);
-    transition: text-shadow 0.05s ease-out;
 }
 
 .counter-value {
