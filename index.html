@@ -35,8 +35,8 @@
                 if (gameAreaRef.current && !initialized) {
                     const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
                     setPlayerState({
-                        x: gameAreaRect.x + gameAreaRect.width / 2 - 15, // Center horizontally (player width is 30)
-                        y: gameAreaRect.y - 50, // Start 50px above the game area
+                        x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
+                        y: -50, // Start 50px above the game area, relative to it
                         vx: 0,
                         vy: 0,
                         grounded: false
@@ -66,8 +66,8 @@
 
                     const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
                     const planetCenter = {
-                        x: gameAreaRect.left + gameAreaRect.width / 2,
-                        y: gameAreaRect.top + gameAreaRect.height / 2
+                        x: gameAreaRect.width / 2, // relative to gameArea
+                        y: gameAreaRect.height / 2 // relative to gameArea
                     };
                     const playerSize = 30;
 
@@ -103,33 +103,33 @@
                             centerX: x + playerSize / 2,
                             centerY: y + playerSize / 2
                         };
-                        
-                        const isColliding = playerRect.right > gameAreaRect.left &&
-                                          playerRect.left < gameAreaRect.right &&
-                                          playerRect.bottom > gameAreaRect.top &&
-                                          playerRect.top < gameAreaRect.bottom;
+
+                        const isColliding = playerRect.right > 0 &&
+                                          playerRect.left < gameAreaRect.width &&
+                                          playerRect.bottom > 0 &&
+                                          playerRect.top < gameAreaRect.height;
                         
                         if (isColliding) {
                              grounded = true;
                             // Find shallowest penetration and push out
-                            const penLeft = playerRect.right - gameAreaRect.left;
-                            const penRight = gameAreaRect.right - playerRect.left;
-                            const penTop = playerRect.bottom - gameAreaRect.top;
-                            const penBottom = gameAreaRect.bottom - playerRect.top;
+                            const penLeft = playerRect.right;
+                            const penRight = gameAreaRect.width - playerRect.left;
+                            const penTop = playerRect.bottom;
+                            const penBottom = gameAreaRect.height - playerRect.top;
 
                             const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
                             if (minPen === penTop) { // Pushing out from top of box
-                                y = gameAreaRect.top - playerSize;
+                                y = -playerSize;
                                 vy = 0;
                             } else if (minPen === penBottom) { // Pushing out from bottom of box
-                                y = gameAreaRect.bottom;
+                                y = gameAreaRect.height;
                                 vy = 0;
                             } else if (minPen === penLeft) { // Pushing out from left of box
-                                x = gameAreaRect.left - playerSize;
+                                x = -playerSize;
                                 vx = 0;
                             } else { // Pushing out from right of box
-                                x = gameAreaRect.right;
+                                x = gameAreaRect.width;
                                 vx = 0;
                             }
                         }
@@ -156,10 +156,10 @@
 
             return (
                 <>
-                    <div ref={playerRef} className="player" style={{
-                        transform: `translate(${playerState.x}px, ${playerState.y}px)`
-                    }}></div>
                     <main ref={gameAreaRef}>
+                        <div ref={playerRef} className="player" style={{
+                            transform: `translate(${playerState.x}px, ${playerState.y}px)`
+                        }}></div>
                         <h1>You Just Lost The Game</h1>
                     </main>
                 </>
