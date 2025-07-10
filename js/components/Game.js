@@ -9,67 +9,24 @@ function Game() {
         y: -100,
         vx: 0,
         vy: 0,
-        grounded: false,
-        health: 1 // Max health is 1 (100%)
+        grounded: false
     });
     const [gameScale, setGameScale] = useState(1);
     const [initialized, setInitialized] = useState(false);
     const keysPressed = useRef({});
-    const [healthOrbs, setHealthOrbs] = useState([]);
 
     useEffect(() => {
         if (gameAreaRef.current && !initialized) {
             const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-            setPlayerState(p => ({
-                ...p,
+            setPlayerState({
                 x: gameAreaRect.width / 2 - 15, // Center horizontally relative to gameArea
                 y: -50, // Start 50px above the game area, relative to it
-            }));
-            setInitialized(true);
-        }
-    }, [initialized]);
-
-    // Orb Spawning Timer
-    useEffect(() => {
-        if (!initialized) return;
-
-        const orbSpawner = setInterval(() => {
-            if (!gameAreaRef.current) return;
-            const gameAreaWidth = gameAreaRef.current.offsetWidth;
-            const gameAreaHeight = gameAreaRef.current.offsetHeight;
-            const spawnBoxSize = Math.max(gameAreaWidth, gameAreaHeight) * 2.5;
-
-            // Spawn orbs in a large area around the game's center, with coordinates relative to the game area
-            const newOrb = {
-                id: Date.now(),
-                x: (gameAreaWidth / 2) + (Math.random() - 0.5) * spawnBoxSize,
-                y: (gameAreaHeight / 2) + (Math.random() - 0.5) * spawnBoxSize,
                 vx: 0,
                 vy: 0,
-                attracted: false
-            };
-
-            setHealthOrbs(orbs => [...orbs, newOrb]);
-        }, 5000); // Spawn every 5 seconds
-
-        return () => clearInterval(orbSpawner);
-    }, [initialized]);
-
-    // Health Drain Timer
-    useEffect(() => {
-        if (!initialized) return;
-
-        const healthDrainInterval = setInterval(() => {
-            setPlayerState(p => {
-                if (p.health <= 0) return p;
-                return {
-                    ...p,
-                    health: Math.max(0, p.health - 0.1)
-                };
+                grounded: false
             });
-        }, 3000); // lose 0.1 health every 3 seconds
-
-        return () => clearInterval(healthDrainInterval);
+            setInitialized(true);
+        }
     }, [initialized]);
 
     useEffect(() => {
@@ -100,10 +57,9 @@ function Game() {
                 y: gameAreaHeight / 2 // relative to gameArea
             };
             const playerSize = 30;
-            const orbSize = 20;
 
             setPlayerState(p => {
-                let { x, y, vx, vy, health } = p;
+                let { x, y, vx, vy } = p;
                 
                 // Gravity
                 const gravity = 0.3; // slightly reduced for better control
@@ -124,71 +80,12 @@ function Game() {
                 vx *= 0.98;
                 vy *= 0.98;
 
-                // Orb collection and attraction
-                // Both player and orbs are in the same game-world coordinate system now.
+                // Calculate zoom based on distance from planet center
                 const playerCenterX = x + playerSize / 2;
                 const playerCenterY = y + playerSize / 2;
-                
-                const updatedOrbs = [];
-                let collectedAny = false;
-                
-                for(const orb of healthOrbs) {
-                    const orbCenterX = orb.x + orbSize / 2;
-                    const orbCenterY = orb.y + orbSize / 2;
-
-                    const dx = playerCenterX - orbCenterX;
-                    const dy = playerCenterY - orbCenterY;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    const collisionDistance = (playerSize / 2) + (orbSize / 2);
-                    const detectionDistance = collisionDistance * 3; // 3x collision radius for attraction
-
-                    // Check for collision (collection)
-                    if (distance < collisionDistance) {
-                        collectedAny = true;
-                        continue; // Don't add to updatedOrbs (orb is collected)
-                    }
-
-                    // Update orb state
-                    let newOrb = { ...orb };
-
-                    // Check for attraction
-                    if (distance < detectionDistance) {
-                        if (!orb.attracted) {
-                            newOrb.attracted = true;
-                        }
-                        
-                        // Move toward player
-                        const attractionForce = 0.5;
-                        if (distance > 0) {
-                            newOrb.vx += (dx / distance) * attractionForce;
-                            newOrb.vy += (dy / distance) * attractionForce;
-                        }
-                    }
-
-                    // Update orb position
-                    newOrb.x += newOrb.vx;
-                    newOrb.y += newOrb.vy;
-
-                    // Apply drag to orb movement
-                    newOrb.vx *= 0.95;
-                    newOrb.vy *= 0.95;
-
-                    updatedOrbs.push(newOrb);
-                }
-
-                if(collectedAny) {
-                    health = Math.min(1, health + 0.1);
-                }
-                
-                setHealthOrbs(updatedOrbs);
-
-                // Calculate zoom based on distance from planet center
-                const playerDistX = x + playerSize / 2;
-                const playerDistY = y + playerSize / 2;
-
                 const distanceFromCenter = Math.sqrt(
-                    Math.pow(playerDistX - planetCenter.x, 2) + 
-                    Math.pow(playerDistY - planetCenter.y, 2)
+                    Math.pow(playerCenterX - planetCenter.x, 2) + 
+                    Math.pow(playerCenterY - planetCenter.y, 2)
                 );
                 
                 // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
@@ -257,7 +154,7 @@ function Game() {
                 if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
                 if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
 
-                return { x, y, vx, vy, grounded, health };
+                return { x, y, vx, vy, grounded };
             });
 
             animationFrameId = requestAnimationFrame(gameLoop);
@@ -277,21 +174,9 @@ function Game() {
                 transformOrigin: 'center',
                 transition: 'transform 0.1s ease-out'
             }}>
-                {healthOrbs.map(orb => (
-                    <div
-                        key={orb.id}
-                        className="health-orb"
-                        style={{
-                            transform: `translate(${orb.x}px, ${orb.y}px)`
-                        }}
-                    ></div>
-                ))}
                 <div ref={playerRef} className="player" style={{
                     transform: `translate(${playerState.x}px, ${playerState.y}px)`
                 }}></div>
-                <div className="health-bar-container">
-                    <div className="health-bar" style={{ width: `${playerState.health * 100}%` }}></div>
-                </div>
                 <h1>You Just Lost The Game</h1>
             </main>
         </>
