@@ -202,7 +202,7 @@
                         );
                         
                         // Boundary restriction
-                        const maxDistance = Math.max(gameAreaWidth, gameAreaHeight) * 1.5; // A bit more room than zoom limit
+                        const maxDistance = Math.max(gameAreaWidth, gameAreaHeight) * 1.2;
                         if (distanceFromCenter > maxDistance) {
                             // Vector from center to player
                             const fromCenterDx = playerCenterX - planetCenter.x;
@@ -233,7 +233,7 @@
                         // Scale calculation: closer = larger scale (zoomed in), farther = smaller scale (zoomed out)
                         const zoomMaxDistance = Math.max(gameAreaWidth, gameAreaHeight);
                         const normalizedDistance = Math.min(distanceFromCenter / zoomMaxDistance, 1);
-                        const minScale = 0.4; // Don't zoom out too much
+                        const minScale = 0.3; // Don't zoom out too much
                         const maxScale = 1.2; // Allow slight zoom in when very close
                         const targetScale = maxScale - (normalizedDistance * (maxScale - minScale));
                         
