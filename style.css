@@ -47,13 +47,6 @@ body::before {
     }
 }
 
-.game-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    will-change: transform;
-}
-
 main {
     position: relative;
     padding: 2rem 4rem;
