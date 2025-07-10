@@ -66,17 +66,31 @@
                     if (!gameAreaRef.current) return;
 
                     const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
+                    // Account for padding to get the actual content area
+                    const padding = {
+                        horizontal: 64, // 4rem = 64px
+                        vertical: 32    // 2rem = 32px
+                    };
+                    const planetBounds = {
+                        left: padding.horizontal,
+                        right: gameAreaRect.width - padding.horizontal,
+                        top: padding.vertical,
+                        bottom: gameAreaRect.height - padding.vertical,
+                        width: gameAreaRect.width - (padding.horizontal * 2),
+                        height: gameAreaRect.height - (padding.vertical * 2)
+                    };
+                    
                     const planetCenter = {
-                        x: gameAreaRect.width / 2, // relative to gameArea
-                        y: gameAreaRect.height / 2 // relative to gameArea
+                        x: planetBounds.left + planetBounds.width / 2,
+                        y: planetBounds.top + planetBounds.height / 2
                     };
                     const playerSize = 30;
 
                     setPlayerState(p => {
                         let { x, y, vx, vy } = p;
                         
-                        // Gravity
-                        const gravity = 0.3; // slightly reduced for better control
+                        // Gravity towards planet center
+                        const gravity = 0.3;
                         const dx = planetCenter.x - (x + playerSize / 2);
                         const dy = planetCenter.y - (y + playerSize / 2);
                         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -115,7 +129,7 @@
                             return prevScale + scaleDiff * 0.1; // Smooth interpolation
                         });
 
-                        // Collision detection with planet
+                        // Collision detection with planet bounds (rectangular)
                         let grounded = false;
                         const playerRect = {
                             left: x,
@@ -126,32 +140,33 @@
                             centerY: y + playerSize / 2
                         };
 
-                        const isColliding = playerRect.right > 0 &&
-                                          playerRect.left < gameAreaRect.width &&
-                                          playerRect.bottom > 0 &&
-                                          playerRect.top < gameAreaRect.height;
+                        // Check if player overlaps with the planet rectangle
+                        const isColliding = playerRect.right > planetBounds.left &&
+                                          playerRect.left < planetBounds.right &&
+                                          playerRect.bottom > planetBounds.top &&
+                                          playerRect.top < planetBounds.bottom;
                         
                         if (isColliding) {
                              grounded = true;
                             // Find shallowest penetration and push out
-                            const penLeft = playerRect.right;
-                            const penRight = gameAreaRect.width - playerRect.left;
-                            const penTop = playerRect.bottom;
-                            const penBottom = gameAreaRect.height - playerRect.top;
+                            const penLeft = playerRect.right - planetBounds.left;
+                            const penRight = planetBounds.right - playerRect.left;
+                            const penTop = playerRect.bottom - planetBounds.top;
+                            const penBottom = planetBounds.bottom - playerRect.top;
 
                             const minPen = Math.min(penLeft, penRight, penTop, penBottom);
 
-                            if (minPen === penTop) { // Pushing out from top of box
-                                y = -playerSize;
+                            if (minPen === penTop) { // Pushing out from top of planet
+                                y = planetBounds.top - playerSize;
                                 vy = 0;
-                            } else if (minPen === penBottom) { // Pushing out from bottom of box
-                                y = gameAreaRect.height;
+                            } else if (minPen === penBottom) { // Pushing out from bottom of planet
+                                y = planetBounds.bottom;
                                 vy = 0;
-                            } else if (minPen === penLeft) { // Pushing out from left of box
-                                x = -playerSize;
+                            } else if (minPen === penLeft) { // Pushing out from left of planet
+                                x = planetBounds.left - playerSize;
                                 vx = 0;
-                            } else { // Pushing out from right of box
-                                x = gameAreaRect.width;
+                            } else { // Pushing out from right of planet
+                                x = planetBounds.right;
                                 vx = 0;
                             }
                         }
