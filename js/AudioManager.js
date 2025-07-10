@@ -6,7 +6,6 @@ const AudioManager = (() => {
     let gainNode = null;
     let isPlaying = false;
     let audioInitialized = false;
-    const soundBuffers = new Map();
 
     const loadMusic = async (url) => {
         if (!audioContext) return;
@@ -16,18 +15,6 @@ const AudioManager = (() => {
             musicBuffer = await audioContext.decodeAudioData(arrayBuffer);
         } catch (error) {
             console.error("Error loading audio file:", error);
-        }
-    };
-
-    const loadSound = async (name, url) => {
-        if (!audioContext || soundBuffers.has(name)) return;
-        try {
-            const response = await fetch(url);
-            const arrayBuffer = await response.arrayBuffer();
-            const buffer = await audioContext.decodeAudioData(arrayBuffer);
-            soundBuffers.set(name, buffer);
-        } catch (error) {
-            console.error(`Error loading sound file ${name}:`, error);
         }
     };
 
@@ -82,20 +69,6 @@ const AudioManager = (() => {
             }
             await loadMusic('/yjltg-robo.ogg');
             audioInitialized = true;
-        },
-        async loadSound(name, url) {
-            await loadSound(name, url);
-        },
-        playSound(name) {
-            if (!audioInitialized || !soundBuffers.has(name) || !audioContext) return;
-             if (audioContext.state === 'suspended') {
-                 audioContext.resume();
-             }
-            const buffer = soundBuffers.get(name);
-            const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioContext.destination);
-            source.start(0);
         },
         play() {
             if (!audioInitialized || isPlaying) return;
