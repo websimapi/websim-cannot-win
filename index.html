@@ -115,32 +115,46 @@
                             return prevScale + scaleDiff * 0.1; // Smooth interpolation
                         });
 
-                        // ===== Replace collision detection so player never enters the container interior =====
-                        // Compute unscaled container dimensions
-                        const width = gameAreaRect.width / gameScale;
-                        const height = gameAreaRect.height / gameScale;
-                        // If player rect overlaps the interior region, push it back out to the nearest edge
-                        if (x + playerSize > 0 && x < width && y + playerSize > 0 && y < height) {
-                            const penLeft   = x + playerSize;
-                            const penRight  = width - x;
-                            const penTop    = y + playerSize;
-                            const penBottom = height - y;
+                        // Collision detection with planet
+                        let grounded = false;
+                        const playerRect = {
+                            left: x,
+                            right: x + playerSize,
+                            top: y,
+                            bottom: y + playerSize,
+                            centerX: x + playerSize / 2,
+                            centerY: y + playerSize / 2
+                        };
+
+                        const isColliding = playerRect.right > 0 &&
+                                          playerRect.left < gameAreaRect.width &&
+                                          playerRect.bottom > 0 &&
+                                          playerRect.top < gameAreaRect.height;
+                        
+                        if (isColliding) {
+                             grounded = true;
+                            // Find shallowest penetration and push out
+                            const penLeft = playerRect.right;
+                            const penRight = gameAreaRect.width - playerRect.left;
+                            const penTop = playerRect.bottom;
+                            const penBottom = gameAreaRect.height - playerRect.top;
+
                             const minPen = Math.min(penLeft, penRight, penTop, penBottom);
-                            if (minPen === penLeft) {
-                                x = -playerSize;
-                                vx = -vx * 0.8;
-                            } else if (minPen === penRight) {
-                                x = width;
-                                vx = -vx * 0.8;
-                            } else if (minPen === penTop) {
+
+                            if (minPen === penTop) { // Pushing out from top of box
                                 y = -playerSize;
-                                vy = -vy * 0.8;
-                            } else {
-                                y = height;
-                                vy = -vy * 0.8;
+                                vy = 0;
+                            } else if (minPen === penBottom) { // Pushing out from bottom of box
+                                y = gameAreaRect.height;
+                                vy = 0;
+                            } else if (minPen === penLeft) { // Pushing out from left of box
+                                x = -playerSize;
+                                vx = 0;
+                            } else { // Pushing out from right of box
+                                x = gameAreaRect.width;
+                                vx = 0;
                             }
                         }
-                        // ======================================================================================
 
                         // Controls
                         const moveForce = 0.8; // Reduced force for finer control
@@ -149,7 +163,7 @@
                         if (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA']) vx -= moveForce;
                         if (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD']) vx += moveForce;
 
-                        return { x, y, vx, vy, grounded: false };
+                        return { x, y, vx, vy, grounded };
                     });
 
                     animationFrameId = requestAnimationFrame(gameLoop);
@@ -169,6 +183,8 @@
                         transformOrigin: 'center',
                         transition: 'transform 0.1s ease-out'
                     }}>
+                        <div className="gravity-field-debug"></div>
+                        <div className="platform-debug"></div>
                         <div ref={playerRef} className="player" style={{
                             transform: `translate(${playerState.x}px, ${playerState.y}px)`
                         }}></div>
