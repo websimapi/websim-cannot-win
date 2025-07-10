@@ -52,6 +52,23 @@ function Game() {
         return () => clearInterval(orbSpawner);
     }, [initialized]);
 
+    // Health Drain Timer
+    useEffect(() => {
+        if (!initialized) return;
+
+        const healthDrainInterval = setInterval(() => {
+            setPlayerState(p => {
+                if (p.health <= 0) return p;
+                return {
+                    ...p,
+                    health: Math.max(0, p.health - 0.1)
+                };
+            });
+        }, 3000); // lose 0.1 health every 3 seconds
+
+        return () => clearInterval(healthDrainInterval);
+    }, [initialized]);
+
     useEffect(() => {
         const handleKeyDown = (e) => { keysPressed.current[e.code] = true; };
         const handleKeyUp = (e) => { keysPressed.current[e.code] = false; };
