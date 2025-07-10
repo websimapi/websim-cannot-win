@@ -12,6 +12,16 @@ function App() {
     }, [gameStarted]);
 
     const handlePlayClick = async () => {
+        // On mobile, attempt to lock screen orientation to landscape
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isMobile && screen.orientation && screen.orientation.lock) {
+            try {
+                await screen.orientation.lock('landscape');
+            } catch (err) {
+                console.warn("Could not lock orientation. Please rotate your device manually.", err);
+            }
+        }
+
         await lossesCollection.create({});
         setGameStarted(true);
         setIsFading(true);
@@ -68,6 +78,28 @@ function App() {
     return (
         <>
             {isFading && <FadeInOverlay />}
+            
+            {/* Status bar for mobile landscape */}
+            <div className="status-bar">
+                <div className="status-item">
+                    <span>Recent Loser</span>
+                    <div className="status-value">{mostRecentLoser}</div>
+                </div>
+                <div className="status-item">
+                    <span>Lost Today</span>
+                    <div className="status-value">{todayCount}</div>
+                </div>
+                <div className="status-item">
+                    <span>This Week</span>
+                    <div className="status-value">{weekCount}</div>
+                </div>
+                 <div className="status-item">
+                    <span>All Time</span>
+                    <div className="status-value">{allTimeCount}</div>
+                </div>
+            </div>
+
+            {/* Corner boxes for desktop */}
             <div className="corner top-left">
                 <div className="counter-box">
                     <span>Most Recent Loser</span>
