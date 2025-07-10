@@ -7,6 +7,7 @@ function App() {
 
     const handlePlayClick = async () => {
         await lossesCollection.create({});
+        setGameStarted(true);
         setIsFading(true);
         
         // Initialize and play audio on user interaction
@@ -15,7 +16,6 @@ function App() {
 
         setTimeout(() => {
             setIsFading(false);
-            setGameStarted(true); // Start the game after the fade
         }, 10000); // Corresponds to fade animation duration
     };
 
@@ -51,22 +51,17 @@ function App() {
 
     if (!gameStarted) {
         return (
-            <>
-                {isFading ? (
-                    <FadeInOverlay />
-                ) : (
-                    <DisclaimerOverlay
-                        onPlayClick={handlePlayClick}
-                        mostRecentLoss={mostRecentLoss}
-                        weekCount={weekCount}
-                    />
-                )}
-            </>
+            <DisclaimerOverlay
+                onPlayClick={handlePlayClick}
+                mostRecentLoss={mostRecentLoss}
+                weekCount={weekCount}
+            />
         );
     }
 
     return (
         <>
+            {isFading && <FadeInOverlay />}
             <div className="corner top-left">
                 <div className="counter-box">
                     <span>Most Recent Loser</span>
