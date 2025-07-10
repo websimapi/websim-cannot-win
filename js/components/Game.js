@@ -177,7 +177,7 @@ function Game() {
                 <div ref={playerRef} className="player" style={{
                     transform: `translate(${playerState.x}px, ${playerState.y}px)`
                 }}></div>
-                <h1>You Just Lost The Game</h1>
+                <h1 className="visualizer-text">You Just Lost The Game</h1>
             </main>
         </>
     );

@@ -1,4 +1,4 @@
-const { useState, useEffect, useSyncExternalStore, useMemo } = React;
+const { useState, useEffect, useSyncExternalStore, useMemo, useCallback } = React;
 
 function App() {
     const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
@@ -11,28 +11,44 @@ function App() {
         let animationFrameId;
         const root = document.documentElement;
 
+        // State for continuous animation
+        let gradientX = 0;
+        let lastTime = performance.now();
+
         const visualize = () => {
+            const now = performance.now();
+            const deltaTime = now - lastTime;
+            lastTime = now;
+
             const frequencyData = AudioManager.getFrequencyData();
             if (frequencyData) {
-                // Bass frequencies for a punchy shadow spread
-                const bassFrequencies = frequencyData.slice(0, 5); // 0-~860Hz
-                const averageBass = bassFrequencies.reduce((sum, value) => sum + value, 0) / bassFrequencies.length;
-                const shadowIntensity = (averageBass / 255) * 35; // Max 35px spread for more impact
+                // Slice frequency data for different ranges
+                const bassFrequencies = frequencyData.slice(0, 5); // ~0-215Hz
+                const midFrequencies = frequencyData.slice(15, 30); // ~645-1290Hz
+                const trebleFrequencies = frequencyData.slice(50, 100); // ~2150-4300Hz
 
-                // Mid frequencies for color changes
-                const midFrequencies = frequencyData.slice(10, 30); // ~1700Hz-~5100Hz
-                const averageMid = midFrequencies.reduce((sum, value) => sum + value, 0) / midFrequencies.length;
-                
-                // Map mid-range intensity to a hue value (0-360)
-                // Let's use a base red hue and shift it
-                const baseHue = 0; // Red
-                const hueShift = (averageMid / 255) * 120; // Shift up to 120 degrees (red to green)
-                const hue = (baseHue + hueShift) % 360;
+                const averageBass = bassFrequencies.reduce((s, v) => s + v, 0) / bassFrequencies.length;
+                const averageMid = midFrequencies.reduce((s, v) => s + v, 0) / midFrequencies.length;
+                const averageTreble = trebleFrequencies.reduce((s, v) => s + v, 0) / trebleFrequencies.length;
 
-                const shadowColor = `hsl(${hue}, 100%, 50%)`;
-                
-                root.style.setProperty('--text-shadow-intensity', `${shadowIntensity}px`);
-                root.style.setProperty('--text-shadow-color', shadowColor);
+                // Pulse background size with bass
+                const bassPulse = (averageBass / 255);
+                const gradientSize = 200 + bassPulse * 200; // Pulse between 200% and 400%
+                root.style.setProperty('--gradient-size', `${gradientSize}%`);
+
+                // Move background position
+                const speed = 0.03;
+                gradientX += speed * deltaTime;
+                root.style.setProperty('--gradient-pos-x', `${gradientX}px`);
+
+                // Cycle through hues for 3 gradient colors
+                const hue1 = (now / 40) % 360; // Base color cycles slowly
+                const hue2 = (hue1 + 120 + (averageMid / 255) * 60) % 360; // Mids affect the second color
+                const hue3 = (hue2 + 120 + (averageTreble / 255) * 60) % 360; // Trebles affect the third color
+
+                root.style.setProperty('--gradient-color-1', `hsl(${hue1}, 100%, 55%)`);
+                root.style.setProperty('--gradient-color-2', `hsl(${hue2}, 100%, 55%)`);
+                root.style.setProperty('--gradient-color-3', `hsl(${hue3}, 100%, 55%)`);
             }
             animationFrameId = requestAnimationFrame(visualize);
         };
@@ -41,8 +57,12 @@ function App() {
 
         return () => {
             cancelAnimationFrame(animationFrameId);
-            root.style.setProperty('--text-shadow-intensity', `4px`); // Reset on cleanup
-            root.style.setProperty('--text-shadow-color', `rgba(217, 4, 41, 0.5)`); // Reset color
+            // Reset CSS variables on cleanup
+            root.style.removeProperty('--gradient-size');
+            root.style.removeProperty('--gradient-pos-x');
+            root.style.removeProperty('--gradient-color-1');
+            root.style.removeProperty('--gradient-color-2');
+            root.style.removeProperty('--gradient-color-3');
         };
     }, [showDisclaimer]);
 
@@ -105,26 +125,26 @@ function App() {
             {isFading && <FadeInOverlay />}
             <div className="corner top-left">
                 <div className="counter-box">
-                    <span>Most Recent Loser</span>
-                    <div id="most-recent-loser" className="counter-value">{mostRecentLoser}</div>
+                    <span className="visualizer-text">Most Recent Loser</span>
+                    <div id="most-recent-loser" className="counter-value visualizer-text">{mostRecentLoser}</div>
                 </div>
             </div>
             <div className="corner top-right">
                 <div className="counter-box">
-                    <span>Lost Today</span>
-                    <div id="today-counter" className="counter-value">{todayCount}</div>
+                    <span className="visualizer-text">Lost Today</span>
+                    <div id="today-counter" className="counter-value visualizer-text">{todayCount}</div>
                 </div>
             </div>
             <div className="corner bottom-left">
                 <div className="counter-box">
-                    <span>All Time Losses</span>
-                    <div id="all-time-counter" className="counter-value">{allTimeCount}</div>
+                    <span className="visualizer-text">All Time Losses</span>
+                    <div id="all-time-counter" className="counter-value visualizer-text">{allTimeCount}</div>
                 </div>
             </div>
             <div className="corner bottom-right">
                  <div className="counter-box">
-                    <span>Lost This Week</span>
-                    <div id="week-counter" className="counter-value">{weekCount}</div>
+                    <span className="visualizer-text">Lost This Week</span>
+                    <div id="week-counter" className="counter-value visualizer-text">{weekCount}</div>
                 </div>
             </div>
             <Game />

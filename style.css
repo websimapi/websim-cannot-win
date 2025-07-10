@@ -48,8 +48,12 @@ body::before {
 }
 
 :root {
-    --text-shadow-intensity: 4px;
-    --text-shadow-color: rgba(217, 4, 41, 0.5);
+    /* Gradiant properties for text visualization */
+    --gradient-color-1: #d90429;
+    --gradient-color-2: #ffc300;
+    --gradient-color-3: #00a8e8;
+    --gradient-pos-x: 0px;
+    --gradient-size: 200%;
 }
 
 main {
@@ -68,12 +72,8 @@ main {
 h1 {
     font-size: clamp(2rem, 5vw, 4rem);
     margin: 0;
-    color: #d90429;
     font-weight: 700;
-    text-shadow: 
-        0 0 var(--text-shadow-intensity) var(--text-shadow-color),
-        0 0 calc(var(--text-shadow-intensity) * 1.5) var(--text-shadow-color);
-    transition: text-shadow 0.05s ease-out;
+    /* Inherit the visualizer effect */
 }
 
 .corner {
@@ -82,10 +82,6 @@ h1 {
     font-size: 1.2rem;
     font-weight: 500;
     z-index: 10;
-    text-shadow: 
-        0 0 var(--text-shadow-intensity) var(--text-shadow-color),
-        0 0 calc(var(--text-shadow-intensity) * 0.5) var(--text-shadow-color);
-    transition: text-shadow 0.05s ease-out;
 }
 
 .counter-box {
@@ -104,7 +100,6 @@ h1 {
 .counter-value {
     font-size: 2.5rem;
     font-weight: 700;
-    color: #d90429;
     line-height: 1;
 }
 
@@ -220,4 +215,22 @@ h1 {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     z-index: 20;
     will-change: transform;
+}
+
+.visualizer-text {
+    background-image: linear-gradient(
+        90deg,
+        var(--gradient-color-1),
+        var(--gradient-color-2),
+        var(--gradient-color-3),
+        var(--gradient-color-1) /* Loop back to the start color for smooth animation */
+    );
+    background-size: var(--gradient-size);
+    background-position-x: var(--gradient-pos-x);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* Add a subtle stroke to maintain readability */
+    -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.2);
+    transition: background-position-x 0.05s linear;
 }
