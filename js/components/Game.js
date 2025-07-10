@@ -65,12 +65,15 @@ function Game() {
             const gameAreaWidth = gameAreaRef.current.offsetWidth;
             const gameAreaHeight = gameAreaRef.current.offsetHeight;
 
-            // Use the larger dimension to create a more square-like, vast spawn area.
-            // This ensures vertical spread matches horizontal spread.
-            const baseDimension = Math.max(gameAreaWidth, gameAreaHeight);
-            const spawnDimension = baseDimension * 6;
-            const noGoZone = 10; // 10px buffer from the absolute edge.
-            const spawnRange = spawnDimension - (noGoZone * 2);
+            // Spawn orbs within a larger area than the initial view
+            // Increased multiplier for a much wider spawn region.
+            const spawnRadiusX = gameAreaWidth * 6;
+            const spawnRadiusY = gameAreaHeight * 6;
+            
+            // Add a buffer to prevent spawning at the very edge of the large spawn area.
+            const buffer = 10;
+            const effectiveSpawnRadiusX = spawnRadiusX - buffer * 2;
+            const effectiveSpawnRadiusY = spawnRadiusY - buffer * 2;
 
             // Center the spawn area around the game area center
             const spawnCenterX = gameAreaWidth / 2;
@@ -80,14 +83,8 @@ function Game() {
             
             // This loop ensures orbs don't spawn inside the central game area.
             do {
-                 // Calculate spawn position within the adjusted range
-                 const randomX = Math.random() * spawnRange + noGoZone;
-                 const randomY = Math.random() * spawnRange + noGoZone;
- 
-                 // Translate from spawn area coordinates (0,0 top-left) to game world coordinates
-                 newOrbX = randomX - (spawnDimension / 2) + spawnCenterX;
-                 newOrbY = randomY - (spawnDimension / 2) + spawnCenterY;
-
+                newOrbX = Math.random() * effectiveSpawnRadiusX - (effectiveSpawnRadiusX / 2) + spawnCenterX;
+                newOrbY = Math.random() * effectiveSpawnRadiusY - (effectiveSpawnRadiusY / 2) + spawnCenterY;
             } while (
                 newOrbX >= 0 && newOrbX <= gameAreaWidth &&
                 newOrbY >= 0 && newOrbY <= gameAreaHeight
