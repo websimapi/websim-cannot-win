@@ -11,6 +11,16 @@ body {
     overflow: hidden;
     position: relative;
     z-index: 1;
+
+    /* Background Visualizer styles */
+    background: radial-gradient(
+        circle at center,
+        var(--bg-visualizer-color-1, #1a1a1a),
+        var(--bg-visualizer-color-2, #0d0d0d) 80%
+    );
+    background-size: var(--bg-visualizer-size, 150%) var(--bg-visualizer-size, 150%);
+    animation: bg-pan 40s linear infinite;
+    transition: background-size 0.1s ease-out;
 }
 
 #root {
@@ -20,6 +30,7 @@ body {
     justify-content: center;
     align-items: center;
     position: relative;
+    animation: scroll 60s linear infinite;
 }
 
 body::before {
@@ -47,6 +58,12 @@ body::before {
     }
 }
 
+@keyframes bg-pan {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
 :root {
     /* Gradiant properties for text visualization */
     --gradient-color-1: #d90429;
@@ -54,6 +71,11 @@ body::before {
     --gradient-color-3: #00a8e8;
     --gradient-pos-x: 0px;
     --gradient-size: 200%;
+    
+    /* Background visualizer properties */
+    --bg-visualizer-color-1: #1a1a1a;
+    --bg-visualizer-color-2: #0d0d0d;
+    --bg-visualizer-size: 150%;
 }
 
 main {

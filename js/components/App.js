@@ -31,17 +31,18 @@ function App() {
                 const averageMid = midFrequencies.reduce((s, v) => s + v, 0) / midFrequencies.length;
                 const averageTreble = trebleFrequencies.reduce((s, v) => s + v, 0) / trebleFrequencies.length;
 
-                // Pulse background size with bass
+                // --- TEXT VISUALIZER ---
+                // Pulse background size with bass for text gradient
                 const bassPulse = (averageBass / 255);
                 const gradientSize = 200 + bassPulse * 200; // Pulse between 200% and 400%
                 root.style.setProperty('--gradient-size', `${gradientSize}%`);
 
-                // Move background position
+                // Move background position for text gradient
                 const speed = 0.03;
                 gradientX += speed * deltaTime;
                 root.style.setProperty('--gradient-pos-x', `${gradientX}px`);
 
-                // Cycle through hues for 3 gradient colors
+                // Cycle through hues for 3 gradient colors for text
                 const hue1 = (now / 40) % 360; // Base color cycles slowly
                 const hue2 = (hue1 + 120 + (averageMid / 255) * 60) % 360; // Mids affect the second color
                 const hue3 = (hue2 + 120 + (averageTreble / 255) * 60) % 360; // Trebles affect the third color
@@ -49,6 +50,21 @@ function App() {
                 root.style.setProperty('--gradient-color-1', `hsl(${hue1}, 100%, 55%)`);
                 root.style.setProperty('--gradient-color-2', `hsl(${hue2}, 100%, 55%)`);
                 root.style.setProperty('--gradient-color-3', `hsl(${hue3}, 100%, 55%)`);
+
+                // --- BACKGROUND VISUALIZER ---
+                const bassPulseBg = averageBass / 255;
+                const midPulseBg = averageMid / 255;
+
+                // Pulsate background size with bass
+                const bgSize = 150 + bassPulseBg * 150;
+                root.style.setProperty('--bg-visualizer-size', `${bgSize}%`);
+                
+                // Set background colors based on hues and mid-range frequencies
+                const bgColor1 = `hsl(${hue1}, 80%, ${10 + bassPulseBg * 10}%)`;
+                const bgColor2 = `hsl(${hue2}, 90%, ${15 + midPulseBg * 15}%)`;
+
+                root.style.setProperty('--bg-visualizer-color-1', bgColor1);
+                root.style.setProperty('--bg-visualizer-color-2', bgColor2);
             }
             animationFrameId = requestAnimationFrame(visualize);
         };
@@ -63,6 +79,10 @@ function App() {
             root.style.removeProperty('--gradient-color-1');
             root.style.removeProperty('--gradient-color-2');
             root.style.removeProperty('--gradient-color-3');
+            // Reset background variables
+            root.style.removeProperty('--bg-visualizer-size');
+            root.style.removeProperty('--bg-visualizer-color-1');
+            root.style.removeProperty('--bg-visualizer-color-2');
         };
     }, [showDisclaimer]);
 
