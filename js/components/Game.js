@@ -48,13 +48,30 @@ function Game({ maxHealth }) {
                 if (prevOrbs.length >= MAX_ORBS) {
                     return prevOrbs;
                 }
-                const gameAreaWidth = gameAreaRef.current.offsetWidth;
-                const gameAreaHeight = gameAreaRef.current.offsetHeight;
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
+
+                let x, y;
+                let isInsideGameArea = true;
+
+                // Keep generating coordinates until the orb is outside the game area
+                while (isInsideGameArea) {
+                    x = Math.random() * screenWidth;
+                    y = Math.random() * screenHeight;
+
+                    isInsideGameArea = (
+                        x >= gameAreaRect.left &&
+                        x <= gameAreaRect.right &&
+                        y >= gameAreaRect.top &&
+                        y <= gameAreaRect.bottom
+                    );
+                }
 
                 const newOrb = {
                     id: Date.now() + Math.random(),
-                    x: Math.random() * gameAreaWidth,
-                    y: Math.random() * gameAreaHeight,
+                    x: x,
+                    y: y,
                     vx: (Math.random() - 0.5) * 1,
                     vy: (Math.random() - 0.5) * 1
                 };
@@ -221,16 +238,19 @@ function Game({ maxHealth }) {
                 <div className="health-bar-container">
                     <div className="health-bar" style={{ width: `${(health / maxHealth) * 100}%` }}></div>
                 </div>
-                {orbs.map(orb => (
-                    <div key={orb.id} className="orb" style={{
-                        transform: `translate(${orb.x}px, ${orb.y}px)`
-                    }}></div>
-                ))}
                 <div ref={playerRef} className="player" style={{
                     transform: `translate(${playerState.x}px, ${playerState.y}px)`
                 }}></div>
                 <h1>You Just Lost The Game</h1>
             </main>
+            {orbs.map(orb => (
+                <div key={orb.id} className="orb" style={{
+                    position: 'fixed',
+                    left: 0,
+                    top: 0,
+                    transform: `translate(${orb.x}px, ${orb.y}px)`
+                }}></div>
+            ))}
         </>
     );
 }
