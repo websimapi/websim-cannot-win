@@ -44,16 +44,10 @@
             const losses = useSyncExternalStore(lossesCollection.subscribe, lossesCollection.getList) || [];
             const [showDisclaimer, setShowDisclaimer] = useState(true);
 
-            useEffect(() => {
-                const hasLost = sessionStorage.getItem('hasLostTheGame');
-                if (!hasLost) {
-                    const createLoss = async () => {
-                        await lossesCollection.create({});
-                        sessionStorage.setItem('hasLostTheGame', 'true');
-                    };
-                    createLoss();
-                }
-            }, []);
+            const handlePlayClick = async () => {
+                await lossesCollection.create({});
+                setShowDisclaimer(false);
+            };
 
             const mostRecentLoss = useMemo(() => {
                 return losses.length > 0 ? losses[0] : null;
@@ -88,7 +82,7 @@
             if (showDisclaimer) {
                 return (
                     <DisclaimerOverlay
-                        onPlayClick={() => setShowDisclaimer(false)}
+                        onPlayClick={handlePlayClick}
                         mostRecentLoss={mostRecentLoss}
                         weekCount={weekCount}
                     />
